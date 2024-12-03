@@ -1,0 +1,7 @@
+# Installation Instructions
+# To install the dependencies listed in this file, run the following command:
+# ```sh
+# pip install -r requirements.txt
+# ```
+
+requests==2.26.0
