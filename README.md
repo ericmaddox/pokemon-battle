@@ -1,4 +1,4 @@
-# Pokémon Battle Simulator
+# Pokémon Battle Simulator ![Charizard GIF](https://github.com/ericmaddox/pokemon-battle/blob/media/charizard.gif)
 
 Welcome to the Pokémon Battle Simulator! This project allows you to simulate Pokémon battles using data from the PokéAPI. You can choose your Pokémon, battle against random opponents, and experience dynamic battle features including weather effects, status effects, critical hits, healing moves, and evolution.
 
