@@ -1,4 +1,4 @@
-# Pokémon Battle Simulator ![Charizard GIF](https://github.com/ericmaddox/pokemon-battle/blob/media/charizard.gif)
+# Pokémon Battle Simulator ![Charizard GIF](https://github.com/ericmaddox/pokemon-battle/blob/main/media/charizard.gif)
 
 Welcome to the Pokémon Battle Simulator! This project allows you to simulate Pokémon battles using data from the PokéAPI. You can choose your Pokémon, battle against random opponents, and experience dynamic battle features including weather effects, status effects, critical hits, healing moves, and evolution.
 
@@ -16,24 +16,24 @@ Welcome to the Pokémon Battle Simulator! This project allows you to simulate Po
 - requests library
 
 You can install the requests library using pip:
-```
+```sh
 pip install requests
 ```
 
 ## How to Run
 
 1. Clone the repository:
-```
+```sh
 git clone https://github.com/ericmaddox/pokemon-battle.git
 ```
 
 2. Navigate to the project directory:
-```
+```sh
 cd pokemon-battle
 ```
 
 3. Run the script:
-```
+```sh
 python pokemon_battle.py
 ```
 
