@@ -63,8 +63,9 @@ This project is licensed under the MIT License. See the [LICENSE](https://github
 
 ## Acknowledgements
 
-- PokéAPI for providing the Pokémon data.
-- Python Requests for making HTTP requests easy.
-- The Pokémon Company for creating and owning the Pokémon franchise. You can find more information about them at The Pokémon Company.
+- [PokéAPI](https://pokeapi.co/) for providing the Pokémon data.
+- [Python Requests](https://pypi.org/project/requests/) for making HTTP requests easy.
+- [The Pokémon Company](https://www.pokemon.com/) for creating and owning the Pokémon franchise.
+
 
 Enjoy battling!
