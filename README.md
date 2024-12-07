@@ -85,7 +85,6 @@ This release introduces several major updates to the Pokémon Battle script, imp
 4. **Constants and Validation**: Introduced constants for common values (e.g., experience thresholds) to make the code more maintainable. Added validation for missing or invalid data to prevent crashes during runtime.
 
 ### Dependencies:
-- `requests==2.26.0`
 - `asyncio` for asynchronous requests.
 
 ### Installation:
