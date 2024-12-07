@@ -16,9 +16,13 @@ Welcome to the Pokémon Battle Simulator! This project allows you to simulate Po
 
 ## Requirements
 
-- Python 3.x
-- requests library
-- asyncio for asynchronous requests
+To run this project, you will need the following dependencies:
+
+- **Python 3.x**: Ensure you have Python 3.x installed.
+- **aiohttp** (`>=3.8.0`): Required for making asynchronous HTTP requests.
+- **asyncio**: For handling asynchronous tasks and event loops.
+- **random**: Used for generating random numbers, such as for battle scenarios.
+- **time**: Provides time-related functions for handling delays.
 
 You can install the necessary dependencies using pip:
 
