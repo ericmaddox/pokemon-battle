@@ -1,21 +1,28 @@
-import requests
+import aiohttp
+import asyncio
 import random
 import time
 
-def get_pokemon_data(pokemon_name):
+async def get_pokemon_data(pokemon_name):
     url = f"https://pokeapi.co/api/v2/pokemon/{pokemon_name.lower()}/"
-    response = requests.get(url)
-    if response.status_code == 200:
-        return response.json()
-    else:
-        print(f"Error: {pokemon_name.capitalize()} not found.")
-        return None
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as response:
+            if response.status == 200:
+                return await response.json()
+            else:
+                print(f"Error: {pokemon_name.capitalize()} not found.")
+                return None
 
-def get_move_data(move_url):
-    response = requests.get(move_url)
-    return response.json()
+async def get_move_data(move_url):
+    async with aiohttp.ClientSession() as session:
+        async with session.get(move_url) as response:
+            if response.status == 200:
+                return await response.json()
+            else:
+                print(f"Error fetching move data from {move_url}")
+                return None
 
-def calculate_damage(attacker, defender, move, weather_effect, critical_hit=False):
+async def calculate_damage(attacker, defender, move, weather_effect, critical_hit=False):
     power = move['power'] if move['power'] else 50  # Default power if not specified
     attack = attacker['stats'][1]['base_stat']
     defense = defender['stats'][2]['base_stat']
@@ -32,43 +39,42 @@ def calculate_damage(attacker, defender, move, weather_effect, critical_hit=Fals
 
     # Type effectiveness multiplier
     type_url = f"https://pokeapi.co/api/v2/type/{move['type']['name']}/"
-    type_data = requests.get(type_url).json()
+    async with aiohttp.ClientSession() as session:
+        async with session.get(type_url) as response:
+            if response.status == 200:
+                type_data_json = await response.json()
+            else:
+                print(f"Error fetching type data for {move['type']['name']}")
+                return 1  # Default minimal damage if data is unavailable
+
     effectiveness = 1
     for type_info in defender['types']:
-        if type_info['type']['name'] in [type['name'] for type in type_data['damage_relations']['double_damage_to']]:
+        if type_info['type']['name'] in [type['name'] for type in type_data_json['damage_relations']['double_damage_to']]:
             effectiveness *= 2
-        if type_info['type']['name'] in [type['name'] for type in type_data['damage_relations']['half_damage_to']]:
+        if type_info['type']['name'] in [type['name'] for type in type_data_json['damage_relations']['half_damage_to']]:
             effectiveness *= 0.5
-        if type_info['type']['name'] in [type['name'] for type in type_data['damage_relations']['no_damage_to']]:
+        if type_info['type']['name'] in [type['name'] for type in type_data_json['damage_relations']['no_damage_to']]:
             effectiveness *= 0
 
     # More detailed damage calculation
     damage = ((2 * 50 / 5 + 2) * power * (attack / defense) / 50 + 2) * effectiveness * weather_multiplier * crit_multiplier
     return max(1, damage)
 
-def evolve_pokemon(pokemon):
-    evolution_url = pokemon['species']['url']
-    species_data = requests.get(evolution_url).json()
-    if species_data['evolution_chain']:
-        evolution_chain_url = species_data['evolution_chain']['url']
-        chain_data = requests.get(evolution_chain_url).json()
-        current_stage = chain_data['chain']
-        while current_stage['species']['name'] != pokemon['name']:
-            current_stage = current_stage['evolves_to'][0]
-        if current_stage['evolves_to']:
-            next_stage = current_stage['evolves_to'][0]['species']['name']
-            return get_pokemon_data(next_stage)
+async def evolve_pokemon(pokemon, level):
+    if level >= 16 and pokemon['name'] == 'bulbasaur':  # Example: Bulbasaur evolves at level 16
+        return await get_pokemon_data('ivysaur')
+    elif level >= 32 and pokemon['name'] == 'ivysaur':  # Ivysaur evolves at level 32
+        return await get_pokemon_data('venusaur')
+    # Add more evolution rules here as needed
     return pokemon
 
-def battle(pokemon1, pokemon2):
+async def battle(pokemon1, pokemon2):
     hp1 = pokemon1['stats'][0]['base_stat']
     hp2 = pokemon2['stats'][0]['base_stat']
-    level1 = 50
-    level2 = 50
+    level1 = 5  # Starting level for simplicity, this should be dynamic
+    level2 = 5
     exp1 = 0
     exp2 = 0
-    status1 = None
-    status2 = None
 
     weather_effect = random.choice(['rain', 'sun', 'none'])
     battle_log = []
@@ -78,16 +84,16 @@ def battle(pokemon1, pokemon2):
     while hp1 > 0 and hp2 > 0:
         # Pokemon 1's turn
         move1 = random.choice(pokemon1['moves'])
-        move1_data = get_move_data(move1['move']['url'])
-        critical_hit1 = random.random() < 0.1
-        damage_to_2 = calculate_damage(pokemon1, pokemon2, move1_data, weather_effect, critical_hit1)
+        move1_data = await get_move_data(move1['move']['url'])
+        critical_hit1 = random.random() < (0.1 + 0.02 * pokemon1['stats'][4]['base_stat'])  # Critical hit chance
+        damage_to_2 = await calculate_damage(pokemon1, pokemon2, move1_data, weather_effect, critical_hit1)
         hp2 -= damage_to_2
         log_entry = f"{pokemon1['name'].capitalize()} uses {move1['move']['name']} and deals {damage_to_2} damage."
         if critical_hit1:
             log_entry += " Critical hit!"
         battle_log.append(log_entry)
         print(log_entry)
-        time.sleep(2)
+        await asyncio.sleep(2)
 
         if hp2 <= 0:
             faint_log = f"{pokemon2['name'].capitalize()} faints! {pokemon1['name'].capitalize()} wins!"
@@ -95,24 +101,25 @@ def battle(pokemon1, pokemon2):
             print(faint_log)
             exp1 += 50  # Award experience points
             if exp1 >= 100:
-                battle_log.append(f"{pokemon1['name'].capitalize()} is evolving!")
-                print(f"{pokemon1['name'].capitalize()} is evolving!")
-                pokemon1 = evolve_pokemon(pokemon1)
+                level1 += 1
+                battle_log.append(f"{pokemon1['name'].capitalize()} is now level {level1}!")
+                print(f"{pokemon1['name'].capitalize()} is now level {level1}!")
+                pokemon1 = await evolve_pokemon(pokemon1, level1)
                 exp1 = 0
             break
 
         # Pokemon 2's turn
         move2 = random.choice(pokemon2['moves'])
-        move2_data = get_move_data(move2['move']['url'])
-        critical_hit2 = random.random() < 0.1
-        damage_to_1 = calculate_damage(pokemon2, pokemon1, move2_data, weather_effect, critical_hit2)
+        move2_data = await get_move_data(move2['move']['url'])
+        critical_hit2 = random.random() < (0.1 + 0.02 * pokemon2['stats'][4]['base_stat'])
+        damage_to_1 = await calculate_damage(pokemon2, pokemon1, move2_data, weather_effect, critical_hit2)
         hp1 -= damage_to_1
         log_entry = f"{pokemon2['name'].capitalize()} uses {move2['move']['name']} and deals {damage_to_1} damage."
         if critical_hit2:
             log_entry += " Critical hit!"
         battle_log.append(log_entry)
         print(log_entry)
-        time.sleep(2)
+        await asyncio.sleep(2)
 
         if hp1 <= 0:
             faint_log = f"{pokemon1['name'].capitalize()} faints! {pokemon2['name'].capitalize()} wins!"
@@ -120,9 +127,10 @@ def battle(pokemon1, pokemon2):
             print(faint_log)
             exp2 += 50  # Award experience points
             if exp2 >= 100:
-                battle_log.append(f"{pokemon2['name'].capitalize()} is evolving!")
-                print(f"{pokemon2['name'].capitalize()} is evolving!")
-                pokemon2 = evolve_pokemon(pokemon2)
+                level2 += 1
+                battle_log.append(f"{pokemon2['name'].capitalize()} is now level {level2}!")
+                print(f"{pokemon2['name'].capitalize()} is now level {level2}!")
+                pokemon2 = await evolve_pokemon(pokemon2, level2)
                 exp2 = 0
             break
 
@@ -130,24 +138,24 @@ def battle(pokemon1, pokemon2):
     print(f"\n{pokemon1['name'].capitalize()} Level: {level1} Exp: {exp1}")
     print(f"{pokemon2['name'].capitalize()} Level: {level2} Exp: {exp2}")
 
-def main():
+async def main():
     while True:
         pokemon_name = input("Enter the name of the Pokémon you want to use: ")
-        pokemon1 = get_pokemon_data(pokemon_name)
+        pokemon1 = await get_pokemon_data(pokemon_name)
         if pokemon1:
             break
         print("Please enter a valid Pokémon name.")
 
     random_id = random.randint(1, 151)  # You can adjust the range as needed
     random_pokemon_name = str(random_id)
-    pokemon2 = get_pokemon_data(random_pokemon_name)
+    pokemon2 = await get_pokemon_data(random_pokemon_name)
     if not pokemon2:
         return
 
     print(f"Your Pokémon: {pokemon1['name'].capitalize()}")
     print(f"Opponent: {pokemon2['name'].capitalize()}")
 
-    battle(pokemon1, pokemon2)
+    await battle(pokemon1, pokemon2)
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
