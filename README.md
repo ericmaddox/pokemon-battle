@@ -1,4 +1,4 @@
-# Pokémon Battle Simulator ![Charizard GIF](https://github.com/ericmaddox/pokemon-battle/blob/main/media/charizard.gif)
+# Pokémon Battle Simulator ![Charizard GIF](https://github.com/ericmaddox/pokemon-battle/blob/main/media/charizard.gif)<div align="center">
 
 Welcome to the Pokémon Battle Simulator! This project allows you to simulate Pokémon battles using data from the PokéAPI. You can choose your Pokémon, battle against random opponents, and experience dynamic battle features including weather effects, status effects, critical hits, healing moves, evolution, and now an enhanced leveling system!
 
@@ -110,3 +110,7 @@ This project is licensed under the MIT License. See the [LICENSE](https://github
 - [The Pokémon Company](https://www.pokemon.com/us/) for creating and owning the Pokémon franchise. You can find more information about them at The Pokémon Company.
 
 Enjoy battling!
+
+<div align="right">
+  <img src="https://komarev.com/ghpvc/?username=ericmaddox&repo=pokemon-battle&style=for-the-badge&color=2d343c&labelColor=81c7ff&label=Repository%20Views" alt="GitHub Repository Visit Counter" />
+</div>
