@@ -1,3 +1,10 @@
+# Pokemon Battle
+
+![License](https://img.shields.io/github/license/ericmaddox/pokemon-battle.svg)
+![Issues](https://img.shields.io/github/issues/ericmaddox/pokemon-battle.svg)
+![Forks](https://img.shields.io/github/forks/ericmaddox/pokemon-battle.svg)
+![Stars](https://img.shields.io/github/stars/ericmaddox/pokemon-battle.svg)
+![Contributors](https://img.shields.io/github/contributors/ericmaddox/pokemon-battle.svg)
 # Pokémon Battle Simulator ![Charizard GIF](https://github.com/ericmaddox/pokemon-battle/blob/main/media/charizard.gif)<div align="center">
 
 Welcome to the Pokémon Battle Simulator! This project allows you to simulate Pokémon battles using data from the PokéAPI. You can choose your Pokémon, battle against random opponents, and experience dynamic battle features including weather effects, status effects, critical hits, healing moves, evolution, and now an enhanced leveling system!
