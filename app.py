@@ -232,6 +232,21 @@ def get_speed(pokemon: dict) -> int:
     """Get Pokemon's speed stat."""
     return pokemon['stats'][5]['base_stat']
 
+def calculate_hp(base_hp: int, level: int = 50, iv: int = 15, ev: int = 85) -> int:
+    """
+    Calculate actual HP from base stat using the official Pokemon formula.
+    HP = floor(((2 * Base + IV + EV/4) * Level)/100) + Level + 10
+    Using moderate IV (15) and EV (85) for balanced gameplay.
+    """
+    return int(((2 * base_hp + iv + ev // 4) * level) / 100) + level + 10
+
+def calculate_stat(base_stat: int, level: int = 50, iv: int = 15, ev: int = 85, nature: float = 1.0) -> int:
+    """
+    Calculate actual stat from base stat using the official Pokemon formula.
+    Stat = floor((floor(((2 * Base + IV + EV/4) * Level)/100) + 5) * Nature)
+    """
+    return int((((2 * base_stat + iv + ev // 4) * level) / 100 + 5) * nature)
+
 async def calculate_damage_enhanced(
     attacker: dict, 
     defender: dict, 
@@ -1090,9 +1105,12 @@ with gr.Blocks(
         # Get player moves
         player_moves = await get_pokemon_moves(player_data)
         
-        # Initialize HP
-        max_p1_hp = player_data['stats'][0]['base_stat']
-        max_p2_hp = opponent_data['stats'][0]['base_stat']
+        # Initialize HP using official Pokemon formula (much higher than base stats)
+        # Base HP 35 (Pikachu) -> ~110 HP at level 50
+        base_p1_hp = player_data['stats'][0]['base_stat']
+        base_p2_hp = opponent_data['stats'][0]['base_stat']
+        max_p1_hp = calculate_hp(base_p1_hp)  # Proper HP calculation
+        max_p2_hp = calculate_hp(base_p2_hp)
         
         player_name = player_data['name'].capitalize()
         opponent_name = opponent_data['name'].capitalize()
