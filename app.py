@@ -1480,6 +1480,7 @@ if __name__ == "__main__":
             share=False,
             show_error=True,
             inbrowser=True,  # Automatically open browser
+            pwa=True,  # Enable Progressive Web App installation
             theme=gr.themes.Base(
                 primary_hue=gr.themes.colors.cyan,
                 secondary_hue=gr.themes.colors.pink,
