@@ -772,18 +772,29 @@ def create_pokemon_info_html(pokemon_data: dict | None, is_player: bool = True) 
     
     side_label = "YOUR" if is_player else "ENEMY"
     
+    # Get cry URL from PokeAPI data
+    cry_url = pokemon_data.get('cries', {}).get('latest', '')
+    audio_id = f"{'player' if is_player else 'opponent'}-cry"
+    
     return f"""
     <div class="pokemon-card-wrapper" style="background: linear-gradient(180deg, #e0e0e0 0%, #c8c8c8 100%);
         border: 4px solid #404040; border-radius: 12px; padding: 12px;
         box-shadow: inset -3px -3px 0 #909090, inset 3px 3px 0 #f8f8f8, 5px 5px 0 #303030;">
         
-        <!-- HP Box Header -->
+        <!-- HP Box Header with Cry Button -->
         <div style="background: linear-gradient(180deg, #f0f0f0 0%, #d8d8d8 100%); border: 3px solid #404040;
             border-radius: 8px; padding: 8px 12px; margin-bottom: 8px;
             box-shadow: inset -2px -2px 0 #a0a0a0, inset 2px 2px 0 #ffffff;">
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <span style="font-family: 'Press Start 2P', monospace; font-size: 12px; color: #303030;">{name}</span>
-                <span style="font-family: 'Press Start 2P', monospace; font-size: 10px; color: #505050;">Lv50</span>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <button onclick="(function(){{ var a=new Audio('{cry_url}'); a.volume=0.4; a.play().catch(function(){{}}); }})()" 
+                        style="font-family: 'Press Start 2P', monospace; font-size: 8px; padding: 4px 8px; 
+                        background: linear-gradient(180deg, #f8d030 0%, #c8a020 100%); color: #303030;
+                        border: 2px solid #705030; border-radius: 4px; cursor: pointer;
+                        box-shadow: inset -1px -1px 0 #907020, inset 1px 1px 0 #f8e870;">🔊</button>
+                    <span style="font-family: 'Press Start 2P', monospace; font-size: 10px; color: #505050;">Lv50</span>
+                </div>
             </div>
             <div style="display: flex; align-items: center; margin-top: 6px;">
                 <span style="font-family: 'Press Start 2P', monospace; font-size: 8px; color: #f08030; margin-right: 4px;">HP</span>
