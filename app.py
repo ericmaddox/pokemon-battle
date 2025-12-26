@@ -952,6 +952,43 @@ with gr.Blocks(
                     GEN I EDITION
                 </p>
             </div>
+            
+            <!-- Hidden audio elements for Pokemon cries -->
+            <audio id="player-cry" preload="none" style="display:none;"></audio>
+            <audio id="opponent-cry" preload="none" style="display:none;"></audio>
+            
+            <script>
+                // Pokemon cry playback functions
+                window.playPokemonCry = function(audioId, cryUrl) {
+                    const audio = document.getElementById(audioId);
+                    if (audio && cryUrl) {
+                        audio.src = cryUrl;
+                        audio.volume = 0.3;  // 30% volume for game-like feel
+                        audio.play().catch(e => console.log('Audio play failed:', e));
+                    }
+                };
+                
+                window.playCrySequence = function(cry1Url, cry2Url) {
+                    // Play player cry, then opponent cry after delay
+                    if (cry1Url) {
+                        const audio1 = document.getElementById('player-cry');
+                        audio1.src = cry1Url;
+                        audio1.volume = 0.3;
+                        audio1.play().catch(e => {});
+                        
+                        if (cry2Url) {
+                            audio1.onended = function() {
+                                setTimeout(() => {
+                                    const audio2 = document.getElementById('opponent-cry');
+                                    audio2.src = cry2Url;
+                                    audio2.volume = 0.3;
+                                    audio2.play().catch(e => {});
+                                }, 200);
+                            };
+                        }
+                    }
+                };
+            </script>
         """)
     
     # ══════════════════════════════════════════════════════════════════════════
@@ -1118,22 +1155,34 @@ with gr.Blocks(
         player_speed = get_speed(player_data)
         opponent_speed = get_speed(opponent_data)
         
+        # Get cry URLs from PokeAPI data
+        player_cry = player_data.get('cries', {}).get('latest', '')
+        opponent_cry = opponent_data.get('cries', {}).get('latest', '')
+        
         # Create move button labels with type info
         move_labels = []
         for m in player_moves:
             label = f"{m['name']} ({m['type'].upper()})"
             move_labels.append(label)
         
-        # Initialize battle log
+        # Initialize battle log with cry playback script
         init_msg = f"""<div style="background: #f8f8f8; border: 4px solid #404040; border-radius: 12px; padding: 16px;
             box-shadow: inset -3px -3px 0 #c0c0c0, inset 3px 3px 0 #ffffff, 5px 5px 0 #303030;">
             <div style="font-family: 'Press Start 2P', monospace; font-size: 11px; color: #303030; line-height: 2;">
-                {player_name} vs {opponent_name}!<br>
+                🔊 {player_name} vs {opponent_name}!<br>
                 Your SPD: {player_speed} | Enemy SPD: {opponent_speed}<br>
                 Weather: {weather.capitalize()}<br><br>
                 What will {player_name} do?
             </div>
-        </div>"""
+        </div>
+        <script>
+            // Play both Pokemon cries when battle starts
+            setTimeout(function() {{
+                if (window.playCrySequence) {{
+                    window.playCrySequence('{player_cry}', '{opponent_cry}');
+                }}
+            }}, 300);
+        </script>"""
         
         return (
             init_msg,
