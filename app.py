@@ -115,21 +115,80 @@ def get_animated_sprite_url(pokemon_id: int, back: bool = False) -> str:
     return f"{SPRITE_BASE}/versions/generation-v/black-white/animated/{pokemon_id}.gif"
 
 # ══════════════════════════════════════════════════════════════════════════════
-# BATTLE LOGIC
+# BATTLE LOGIC - ENHANCED
 # ══════════════════════════════════════════════════════════════════════════════
 
-async def calculate_damage(attacker: dict, defender: dict, move: dict, weather: str, critical: bool = False) -> tuple[float, str]:
-    """Calculate damage for an attack. Returns (damage, effectiveness_text)."""
+async def get_pokemon_moves(pokemon_data: dict, limit: int = 4) -> list[dict]:
+    """Fetch full move data for a Pokemon's first N moves."""
+    moves = []
+    for move_entry in pokemon_data.get('moves', [])[:limit]:
+        move_data = await fetch_move_data(move_entry['move']['url'])
+        if move_data and move_data.get('power'):  # Only include damaging moves
+            moves.append({
+                'name': move_data['name'].replace('-', ' ').title(),
+                'power': move_data.get('power', 50),
+                'accuracy': move_data.get('accuracy', 100) or 100,
+                'type': move_data['type']['name'],
+                'category': move_data.get('damage_class', {}).get('name', 'physical'),
+                'pp': move_data.get('pp', 10),
+            })
+    
+    # If we don't have enough damaging moves, add a default
+    while len(moves) < 4:
+        moves.append({
+            'name': 'Struggle',
+            'power': 50,
+            'accuracy': 100,
+            'type': 'normal',
+            'category': 'physical',
+            'pp': 999
+        })
+    
+    return moves[:4]
+
+def get_stab_multiplier(pokemon: dict, move_type: str) -> float:
+    """Check if move gets STAB (Same-Type Attack Bonus)."""
+    pokemon_types = [t['type']['name'] for t in pokemon.get('types', [])]
+    if move_type in pokemon_types:
+        return 1.5  # STAB bonus
+    return 1.0
+
+def get_speed(pokemon: dict) -> int:
+    """Get Pokemon's speed stat."""
+    return pokemon['stats'][5]['base_stat']
+
+async def calculate_damage_enhanced(
+    attacker: dict, 
+    defender: dict, 
+    move: dict, 
+    weather: str, 
+    critical: bool = False
+) -> tuple[int, str, bool]:
+    """
+    Enhanced damage calculation with STAB and Physical/Special split.
+    Returns (damage, effectiveness_text, stab_applied)
+    """
     power = move.get('power') or 50
-    attack = attacker['stats'][1]['base_stat']  # Attack stat
-    defense = defender['stats'][2]['base_stat']  # Defense stat
+    move_type = move.get('type', 'normal')
+    category = move.get('category', 'physical')
+    
+    # Physical vs Special split
+    if category == 'physical':
+        attack = attacker['stats'][1]['base_stat']   # Attack
+        defense = defender['stats'][2]['base_stat']  # Defense
+    else:  # special
+        attack = attacker['stats'][3]['base_stat']   # Sp. Atk
+        defense = defender['stats'][4]['base_stat']  # Sp. Def
+    
+    # STAB (Same-Type Attack Bonus)
+    stab = get_stab_multiplier(attacker, move_type)
+    stab_applied = stab > 1.0
     
     # Critical hit multiplier
     crit_mult = 1.5 if critical else 1.0
     
     # Weather multiplier
     weather_mult = 1.0
-    move_type = move['type']['name']
     if weather == 'rain' and move_type == 'water':
         weather_mult = 1.5
     elif weather == 'sun' and move_type == 'fire':
@@ -162,154 +221,219 @@ async def calculate_damage(attacker: dict, defender: dict, move: dict, weather: 
     elif effectiveness == 0:
         effectiveness_text = "It has no effect!"
     
-    # Damage formula
-    damage = ((2 * 50 / 5 + 2) * power * (attack / defense) / 50 + 2) * effectiveness * weather_mult * crit_mult
-    return max(1, int(damage)), effectiveness_text
+    # Damage formula (Gen V+)
+    level = 50  # Fixed level for now
+    base_damage = ((2 * level / 5 + 2) * power * (attack / defense) / 50 + 2)
+    final_damage = base_damage * stab * effectiveness * weather_mult * crit_mult
+    
+    # Random variance (0.85 to 1.0)
+    variance = random.uniform(0.85, 1.0)
+    final_damage *= variance
+    
+    return max(1, int(final_damage)), effectiveness_text, stab_applied
 
-async def run_battle(pokemon1_name: str, pokemon2_name: str, weather: str) -> list[dict]:
-    """
-    Run a complete battle and return a list of battle events.
-    Each event is a dict with: type, message, p1_hp_percent, p2_hp_percent
-    """
-    pokemon1 = await fetch_pokemon_data(pokemon1_name)
-    pokemon2 = await fetch_pokemon_data(pokemon2_name)
-    
-    if not pokemon1 or not pokemon2:
-        return [{"type": "error", "message": "Failed to load Pokemon data!", "p1_hp": 0, "p2_hp": 0}]
-    
-    max_hp1 = pokemon1['stats'][0]['base_stat']
-    max_hp2 = pokemon2['stats'][0]['base_stat']
-    hp1 = max_hp1
-    hp2 = max_hp2
-    
+async def execute_turn(
+    attacker: dict,
+    defender: dict,
+    move: dict,
+    weather: str,
+    attacker_name: str,
+    defender_name: str
+) -> tuple[int, list[dict]]:
+    """Execute a single turn and return (damage_dealt, events)."""
     events = []
     
-    # Weather announcement
-    weather_icons = {"rain": "🌧️", "sun": "☀️", "none": "🌤️"}
+    # Check accuracy
+    accuracy = move.get('accuracy', 100)
+    if random.randint(1, 100) > accuracy:
+        events.append({
+            "type": "miss",
+            "message": f"{attacker_name}'s attack missed!"
+        })
+        return 0, events
+    
+    # Calculate damage
+    critical = random.random() < 0.0625  # 1/16 chance
+    damage, eff_text, stab_applied = await calculate_damage_enhanced(
+        attacker, defender, move, weather, critical
+    )
+    
+    # Attack message
     events.append({
-        "type": "weather",
-        "message": f"{weather_icons.get(weather, '')} Weather: {weather.capitalize()}",
-        "p1_hp": 100,
-        "p2_hp": 100
+        "type": "attack",
+        "message": f"{attacker_name} used {move['name']}!"
     })
     
-    # Battle start
+    # STAB message
+    if stab_applied:
+        events.append({
+            "type": "stab",
+            "message": f"STAB bonus applied!"
+        })
+    
+    # Critical hit message
+    if critical:
+        events.append({
+            "type": "critical",
+            "message": "A critical hit!"
+        })
+    
+    # Effectiveness message
+    if eff_text:
+        events.append({
+            "type": "effectiveness",
+            "message": eff_text
+        })
+    
+    # Damage message
+    category_label = "physical" if move.get('category') == 'physical' else "special"
     events.append({
-        "type": "start",
-        "message": f"⚔️ {pokemon1['name'].upper()} vs {pokemon2['name'].upper()} - FIGHT!",
-        "p1_hp": 100,
-        "p2_hp": 100
+        "type": "damage",
+        "message": f"   {damage} damage ({category_label})!"
     })
     
-    turn = 0
-    max_turns = 50  # Prevent infinite loops
+    return damage, events
+
+async def run_battle_turn(
+    player_pokemon: dict,
+    opponent_pokemon: dict,
+    player_move: dict,
+    weather: str,
+    player_hp: int,
+    opponent_hp: int,
+    max_player_hp: int,
+    max_opponent_hp: int
+) -> tuple[int, int, list[dict], str | None]:
+    """
+    Run a single battle turn with player move selection.
+    Returns (new_player_hp, new_opponent_hp, events, winner)
+    """
+    events = []
+    winner = None
     
-    while hp1 > 0 and hp2 > 0 and turn < max_turns:
-        turn += 1
+    player_name = player_pokemon['name'].capitalize()
+    opponent_name = opponent_pokemon['name'].capitalize()
+    
+    # Determine turn order based on Speed
+    player_speed = get_speed(player_pokemon)
+    opponent_speed = get_speed(opponent_pokemon)
+    
+    if player_speed > opponent_speed:
+        first = "player"
+    elif opponent_speed > player_speed:
+        first = "opponent"
+    else:
+        first = random.choice(["player", "opponent"])
+    
+    # Speed message
+    if first == "player":
+        events.append({
+            "type": "speed",
+            "message": f"{player_name} is faster! (SPD: {player_speed})"
+        })
+    else:
+        events.append({
+            "type": "speed",
+            "message": f"{opponent_name} is faster! (SPD: {opponent_speed})"
+        })
+    
+    # Opponent selects a random move
+    opponent_moves = await get_pokemon_moves(opponent_pokemon)
+    opponent_move = random.choice(opponent_moves)
+    
+    # Execute turns in speed order
+    if first == "player":
+        # Player attacks first
+        damage, turn_events = await execute_turn(
+            player_pokemon, opponent_pokemon, player_move, weather,
+            player_name, opponent_name
+        )
+        events.extend(turn_events)
+        opponent_hp = max(0, opponent_hp - damage)
         
-        # Pokemon 1's turn
-        if pokemon1['moves']:
-            move1_choice = random.choice(pokemon1['moves'][:4])  # Limit to first 4 moves
-            move1_data = await fetch_move_data(move1_choice['move']['url'])
-            
-            if move1_data:
-                critical1 = random.random() < 0.0625  # 1/16 chance
-                damage1, eff_text1 = await calculate_damage(pokemon1, pokemon2, move1_data, weather, critical1)
-                hp2 = max(0, hp2 - damage1)
-                
-                msg = f"💥 {pokemon1['name'].capitalize()} uses {move1_data['name'].replace('-', ' ').title()}!"
-                events.append({
-                    "type": "attack",
-                    "message": msg,
-                    "p1_hp": int(hp1 / max_hp1 * 100),
-                    "p2_hp": int(hp2 / max_hp2 * 100)
-                })
-                
-                if critical1:
-                    events.append({
-                        "type": "critical",
-                        "message": "🎯 A critical hit!",
-                        "p1_hp": int(hp1 / max_hp1 * 100),
-                        "p2_hp": int(hp2 / max_hp2 * 100)
-                    })
-                
-                if eff_text1:
-                    events.append({
-                        "type": "effectiveness",
-                        "message": f"✨ {eff_text1}",
-                        "p1_hp": int(hp1 / max_hp1 * 100),
-                        "p2_hp": int(hp2 / max_hp2 * 100)
-                    })
-                
-                events.append({
-                    "type": "damage",
-                    "message": f"   → {damage1} damage to {pokemon2['name'].capitalize()}!",
-                    "p1_hp": int(hp1 / max_hp1 * 100),
-                    "p2_hp": int(hp2 / max_hp2 * 100)
-                })
+        # Update HP in events
+        for e in events:
+            e['p1_hp'] = int(player_hp / max_player_hp * 100)
+            e['p2_hp'] = int(opponent_hp / max_opponent_hp * 100)
         
-        if hp2 <= 0:
+        if opponent_hp <= 0:
             events.append({
                 "type": "victory",
-                "message": f"🏆 {pokemon2['name'].capitalize()} fainted! {pokemon1['name'].capitalize()} WINS!",
-                "p1_hp": int(hp1 / max_hp1 * 100),
-                "p2_hp": 0,
-                "winner": pokemon1['name']
+                "message": f"{opponent_name} fainted! {player_name} wins!",
+                "p1_hp": int(player_hp / max_player_hp * 100),
+                "p2_hp": 0
             })
-            break
+            return player_hp, 0, events, "player"
         
-        # Pokemon 2's turn
-        if pokemon2['moves']:
-            move2_choice = random.choice(pokemon2['moves'][:4])
-            move2_data = await fetch_move_data(move2_choice['move']['url'])
-            
-            if move2_data:
-                critical2 = random.random() < 0.0625
-                damage2, eff_text2 = await calculate_damage(pokemon2, pokemon1, move2_data, weather, critical2)
-                hp1 = max(0, hp1 - damage2)
-                
-                msg = f"💥 {pokemon2['name'].capitalize()} uses {move2_data['name'].replace('-', ' ').title()}!"
-                events.append({
-                    "type": "attack",
-                    "message": msg,
-                    "p1_hp": int(hp1 / max_hp1 * 100),
-                    "p2_hp": int(hp2 / max_hp2 * 100)
-                })
-                
-                if critical2:
-                    events.append({
-                        "type": "critical",
-                        "message": "🎯 A critical hit!",
-                        "p1_hp": int(hp1 / max_hp1 * 100),
-                        "p2_hp": int(hp2 / max_hp2 * 100)
-                    })
-                
-                if eff_text2:
-                    events.append({
-                        "type": "effectiveness",
-                        "message": f"✨ {eff_text2}",
-                        "p1_hp": int(hp1 / max_hp1 * 100),
-                        "p2_hp": int(hp2 / max_hp2 * 100)
-                    })
-                
-                events.append({
-                    "type": "damage",
-                    "message": f"   → {damage2} damage to {pokemon1['name'].capitalize()}!",
-                    "p1_hp": int(hp1 / max_hp1 * 100),
-                    "p2_hp": int(hp2 / max_hp2 * 100)
-                })
+        # Opponent attacks
+        damage, turn_events = await execute_turn(
+            opponent_pokemon, player_pokemon, opponent_move, weather,
+            opponent_name, player_name
+        )
+        for e in turn_events:
+            e['p1_hp'] = int(player_hp / max_player_hp * 100)
+            e['p2_hp'] = int(opponent_hp / max_opponent_hp * 100)
+        events.extend(turn_events)
+        player_hp = max(0, player_hp - damage)
         
-        if hp1 <= 0:
+        # Update final HP
+        for e in events[-len(turn_events):]:
+            e['p1_hp'] = int(player_hp / max_player_hp * 100)
+        
+        if player_hp <= 0:
             events.append({
-                "type": "victory",
-                "message": f"🏆 {pokemon1['name'].capitalize()} fainted! {pokemon2['name'].capitalize()} WINS!",
+                "type": "defeat",
+                "message": f"{player_name} fainted! {opponent_name} wins!",
                 "p1_hp": 0,
-                "p2_hp": int(hp2 / max_hp2 * 100),
-                "winner": pokemon2['name']
+                "p2_hp": int(opponent_hp / max_opponent_hp * 100)
             })
-            break
+            return 0, opponent_hp, events, "opponent"
+    else:
+        # Opponent attacks first
+        damage, turn_events = await execute_turn(
+            opponent_pokemon, player_pokemon, opponent_move, weather,
+            opponent_name, player_name
+        )
+        events.extend(turn_events)
+        player_hp = max(0, player_hp - damage)
+        
+        for e in events:
+            e['p1_hp'] = int(player_hp / max_player_hp * 100)
+            e['p2_hp'] = int(opponent_hp / max_opponent_hp * 100)
+        
+        if player_hp <= 0:
+            events.append({
+                "type": "defeat",
+                "message": f"{player_name} fainted! {opponent_name} wins!",
+                "p1_hp": 0,
+                "p2_hp": int(opponent_hp / max_opponent_hp * 100)
+            })
+            return 0, opponent_hp, events, "opponent"
+        
+        # Player attacks
+        damage, turn_events = await execute_turn(
+            player_pokemon, opponent_pokemon, player_move, weather,
+            player_name, opponent_name
+        )
+        for e in turn_events:
+            e['p1_hp'] = int(player_hp / max_player_hp * 100)
+            e['p2_hp'] = int(opponent_hp / max_opponent_hp * 100)
+        events.extend(turn_events)
+        opponent_hp = max(0, opponent_hp - damage)
+        
+        for e in events[-len(turn_events):]:
+            e['p2_hp'] = int(opponent_hp / max_opponent_hp * 100)
+        
+        if opponent_hp <= 0:
+            events.append({
+                "type": "victory",
+                "message": f"{opponent_name} fainted! {player_name} wins!",
+                "p1_hp": int(player_hp / max_player_hp * 100),
+                "p2_hp": 0
+            })
+            return player_hp, 0, events, "player"
     
-    return events
+    return player_hp, opponent_hp, events, None
 
 # ══════════════════════════════════════════════════════════════════════════════
 # UI COMPONENTS
@@ -497,6 +621,14 @@ with gr.Blocks(
     opponent_pokemon_state = gr.State(None)
     battle_events_state = gr.State([])
     
+    # Turn-based battle state
+    player_hp_state = gr.State(100)
+    opponent_hp_state = gr.State(100)
+    max_player_hp_state = gr.State(100)
+    max_opponent_hp_state = gr.State(100)
+    player_moves_state = gr.State([])  # List of 4 moves with full data
+    battle_active_state = gr.State(False)
+    
     # ══════════════════════════════════════════════════════════════════════════
     # HEADER
     # ══════════════════════════════════════════════════════════════════════════
@@ -566,8 +698,8 @@ with gr.Blocks(
             )
         with gr.Column(scale=2):
             with gr.Row():
-                battle_btn = gr.Button(
-                    "FIGHT!",
+                start_battle_btn = gr.Button(
+                    "START BATTLE!",
                     variant="primary",
                     size="lg",
                     elem_classes=["pokemon-btn", "pokemon-btn-primary"]
@@ -579,7 +711,7 @@ with gr.Blocks(
                 )
     
     # ══════════════════════════════════════════════════════════════════════════
-    # BATTLE ARENA
+    # BATTLE ARENA (HP BARS)
     # ══════════════════════════════════════════════════════════════════════════
     
     with gr.Row(visible=False) as battle_arena:
@@ -589,16 +721,30 @@ with gr.Blocks(
             opponent_hp_bar = gr.HTML(value="")
     
     # ══════════════════════════════════════════════════════════════════════════
+    # MOVE SELECTION (2x2 Grid - Pokemon style)
+    # ══════════════════════════════════════════════════════════════════════════
+    
+    gr.HTML("<div style='font-family: Press Start 2P, monospace; color: #f8f8f8; font-size: 10px; text-shadow: 1px 1px 0 #303030; margin: 16px 0 8px;'>SELECT A MOVE:</div>")
+    
+    with gr.Row(visible=False) as move_selection_area:
+        with gr.Column(scale=1):
+            with gr.Row():
+                move_btn_1 = gr.Button("Move 1", elem_classes=["move-btn"])
+                move_btn_2 = gr.Button("Move 2", elem_classes=["move-btn"])
+            with gr.Row():
+                move_btn_3 = gr.Button("Move 3", elem_classes=["move-btn"])
+                move_btn_4 = gr.Button("Move 4", elem_classes=["move-btn"])
+    
+    # ══════════════════════════════════════════════════════════════════════════
     # BATTLE LOG
     # ══════════════════════════════════════════════════════════════════════════
     
-    gr.HTML("")
     battle_log = gr.HTML(
         value="""<div style="background: #f8f8f8; border: 4px solid #404040; border-radius: 12px; padding: 16px;
             box-shadow: inset -3px -3px 0 #c0c0c0, inset 3px 3px 0 #ffffff, 5px 5px 0 #303030;
             min-height: 120px;">
             <div style="font-family: 'Press Start 2P', monospace; font-size: 11px; color: #303030; line-height: 2;">
-                What will you do?
+                Select both Pokemon and click START BATTLE!
             </div>
         </div>""",
         elem_id="battle-log"
@@ -628,33 +774,116 @@ with gr.Blocks(
         data = await fetch_pokemon_data(choice)
         return choice, create_pokemon_info_html(data, is_player=False), data
     
-    async def start_battle(player_data, opponent_data, weather):
-        """Execute the battle and return results."""
+    async def initialize_battle(player_data, opponent_data, weather):
+        """Initialize battle and show move selection."""
         if not player_data or not opponent_data:
+            error_msg = """<div style="background: #f8f8f8; border: 4px solid #404040; border-radius: 12px; padding: 16px;
+                box-shadow: inset -3px -3px 0 #c0c0c0, inset 3px 3px 0 #ffffff, 5px 5px 0 #303030;">
+                <div style="font-family: 'Press Start 2P', monospace; font-size: 11px; color: #e03838; line-height: 2;">
+                    Select both Pokemon first!
+                </div>
+            </div>"""
             return (
-                "<div style='color: #ff4757; text-align: center; padding: 1rem;'>⚠️ Please select both Pokemon before battling!</div>",
+                error_msg,
                 "", "",
-                gr.update(visible=False),
-                []
+                gr.update(visible=False),  # battle_arena
+                gr.update(visible=False),  # move_selection_area
+                gr.update(value="Move 1"),
+                gr.update(value="Move 2"),
+                gr.update(value="Move 3"),
+                gr.update(value="Move 4"),
+                [],  # player_moves_state
+                False,  # battle_active
+                100, 100, 100, 100,  # HP states
+                []  # events
             )
+        
+        # Get player moves
+        player_moves = await get_pokemon_moves(player_data)
+        
+        # Initialize HP
+        max_p1_hp = player_data['stats'][0]['base_stat']
+        max_p2_hp = opponent_data['stats'][0]['base_stat']
+        
+        player_name = player_data['name'].capitalize()
+        opponent_name = opponent_data['name'].capitalize()
+        player_speed = get_speed(player_data)
+        opponent_speed = get_speed(opponent_data)
+        
+        # Create move button labels with type info
+        move_labels = []
+        for m in player_moves:
+            label = f"{m['name']} ({m['type'].upper()})"
+            move_labels.append(label)
+        
+        # Initialize battle log
+        init_msg = f"""<div style="background: #f8f8f8; border: 4px solid #404040; border-radius: 12px; padding: 16px;
+            box-shadow: inset -3px -3px 0 #c0c0c0, inset 3px 3px 0 #ffffff, 5px 5px 0 #303030;">
+            <div style="font-family: 'Press Start 2P', monospace; font-size: 11px; color: #303030; line-height: 2;">
+                {player_name} vs {opponent_name}!<br>
+                Your SPD: {player_speed} | Enemy SPD: {opponent_speed}<br>
+                Weather: {weather.capitalize()}<br><br>
+                What will {player_name} do?
+            </div>
+        </div>"""
+        
+        return (
+            init_msg,
+            create_hp_bar_html(player_name, 100, is_player=True),
+            create_hp_bar_html(opponent_name, 100, is_player=False),
+            gr.update(visible=True),   # battle_arena
+            gr.update(visible=True),   # move_selection_area
+            gr.update(value=move_labels[0]),
+            gr.update(value=move_labels[1]),
+            gr.update(value=move_labels[2]),
+            gr.update(value=move_labels[3]),
+            player_moves,  # player_moves_state
+            True,  # battle_active
+            max_p1_hp, max_p2_hp, max_p1_hp, max_p2_hp,  # HP states
+            []  # events
+        )
+    
+    async def use_move(move_index, player_data, opponent_data, weather, player_hp, opponent_hp, max_p_hp, max_o_hp, player_moves, prev_events, battle_active):
+        """Execute a turn with the selected move."""
+        if not battle_active or not player_data or not opponent_data or not player_moves:
+            return (
+                format_battle_log(prev_events) if prev_events else "Select Pokemon and start battle!",
+                create_hp_bar_html("???", 100, is_player=True),
+                create_hp_bar_html("???", 100, is_player=False),
+                gr.update(visible=False),
+                player_hp, opponent_hp, prev_events, battle_active
+            )
+        
+        selected_move = player_moves[move_index]
+        
+        # Execute the turn
+        new_p_hp, new_o_hp, events, winner = await run_battle_turn(
+            player_data, opponent_data, selected_move, weather,
+            player_hp, opponent_hp, max_p_hp, max_o_hp
+        )
+        
+        # Combine with previous events
+        all_events = prev_events + events
         
         player_name = player_data['name'].capitalize()
         opponent_name = opponent_data['name'].capitalize()
         
-        # Run battle
-        events = await run_battle(player_data['name'], opponent_data['name'], weather)
-        
-        # Get final HP values
-        final_event = events[-1] if events else {"p1_hp": 100, "p2_hp": 100}
-        p1_hp = final_event.get("p1_hp", 0)
-        p2_hp = final_event.get("p2_hp", 0)
+        # Check if battle ended
+        if winner:
+            return (
+                format_battle_log(all_events),
+                create_hp_bar_html(player_name, int(new_p_hp / max_p_hp * 100), is_player=True),
+                create_hp_bar_html(opponent_name, int(new_o_hp / max_o_hp * 100), is_player=False),
+                gr.update(visible=False),  # Hide move selection
+                new_p_hp, new_o_hp, all_events, False  # battle_active = False
+            )
         
         return (
-            format_battle_log(events),
-            create_hp_bar_html(player_name, p1_hp, is_player=True),
-            create_hp_bar_html(opponent_name, p2_hp, is_player=False),
-            gr.update(visible=True),
-            events
+            format_battle_log(all_events),
+            create_hp_bar_html(player_name, int(new_p_hp / max_p_hp * 100), is_player=True),
+            create_hp_bar_html(opponent_name, int(new_o_hp / max_o_hp * 100), is_player=False),
+            gr.update(visible=True),  # Keep move selection visible
+            new_p_hp, new_o_hp, all_events, battle_active
         )
     
     def reset_battle():
@@ -664,12 +893,16 @@ with gr.Blocks(
                 box-shadow: inset -3px -3px 0 #c0c0c0, inset 3px 3px 0 #ffffff, 5px 5px 0 #303030;
                 min-height: 120px;">
                 <div style="font-family: 'Press Start 2P', monospace; font-size: 11px; color: #303030; line-height: 2;">
-                    What will you do?
+                    Select both Pokemon and click START BATTLE!
                 </div>
             </div>""",
             "", "",
-            gr.update(visible=False),
-            []
+            gr.update(visible=False),  # battle_arena
+            gr.update(visible=False),  # move_selection
+            100, 100, 100, 100,  # HP states
+            [],  # events
+            False,  # battle_active
+            []  # player_moves
         )
     
     # Wire up events
@@ -691,16 +924,72 @@ with gr.Blocks(
         outputs=[opponent_dropdown, opponent_info, opponent_pokemon_state]
     )
     
-    battle_btn.click(
-        fn=start_battle,
+    start_battle_btn.click(
+        fn=initialize_battle,
         inputs=[player_pokemon_state, opponent_pokemon_state, weather_dropdown],
-        outputs=[battle_log, player_hp_bar, opponent_hp_bar, battle_arena, battle_events_state]
+        outputs=[
+            battle_log, player_hp_bar, opponent_hp_bar,
+            battle_arena, move_selection_area,
+            move_btn_1, move_btn_2, move_btn_3, move_btn_4,
+            player_moves_state, battle_active_state,
+            player_hp_state, opponent_hp_state, max_player_hp_state, max_opponent_hp_state,
+            battle_events_state
+        ]
+    )
+    
+    # Move button handlers - create wrapper functions for each move
+    async def use_move_1(*args):
+        return await use_move(0, *args)
+    
+    async def use_move_2(*args):
+        return await use_move(1, *args)
+    
+    async def use_move_3(*args):
+        return await use_move(2, *args)
+    
+    async def use_move_4(*args):
+        return await use_move(3, *args)
+    
+    move_inputs = [
+        player_pokemon_state, opponent_pokemon_state, weather_dropdown,
+        player_hp_state, opponent_hp_state, max_player_hp_state, max_opponent_hp_state,
+        player_moves_state, battle_events_state, battle_active_state
+    ]
+    move_outputs = [
+        battle_log, player_hp_bar, opponent_hp_bar, move_selection_area,
+        player_hp_state, opponent_hp_state, battle_events_state, battle_active_state
+    ]
+    
+    move_btn_1.click(
+        fn=use_move_1,
+        inputs=move_inputs,
+        outputs=move_outputs
+    )
+    move_btn_2.click(
+        fn=use_move_2,
+        inputs=move_inputs,
+        outputs=move_outputs
+    )
+    move_btn_3.click(
+        fn=use_move_3,
+        inputs=move_inputs,
+        outputs=move_outputs
+    )
+    move_btn_4.click(
+        fn=use_move_4,
+        inputs=move_inputs,
+        outputs=move_outputs
     )
     
     reset_btn.click(
         fn=reset_battle,
         inputs=[],
-        outputs=[battle_log, player_hp_bar, opponent_hp_bar, battle_arena, battle_events_state]
+        outputs=[
+            battle_log, player_hp_bar, opponent_hp_bar,
+            battle_arena, move_selection_area,
+            player_hp_state, opponent_hp_state, max_player_hp_state, max_opponent_hp_state,
+            battle_events_state, battle_active_state, player_moves_state
+        ]
     )
     
     # Load initial Pokemon on app start

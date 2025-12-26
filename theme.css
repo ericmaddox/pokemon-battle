@@ -723,3 +723,44 @@ label {
     font-size: 10px;
     color: #505050;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   MOVE BUTTONS (2x2 Grid - Pokemon Style)
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.move-btn {
+    font-family: 'Press Start 2P', monospace !important;
+    font-size: 9px !important;
+    background: linear-gradient(180deg, #f8f8f8 0%, #d8d8d8 100%) !important;
+    border: 3px solid #404040 !important;
+    border-radius: 8px !important;
+    color: #303030 !important;
+    padding: 14px 10px !important;
+    cursor: pointer !important;
+    box-shadow:
+        inset -2px -2px 0 #a0a0a0,
+        inset 2px 2px 0 #ffffff,
+        3px 3px 0 #202020 !important;
+    transition: all 0.1s ease !important;
+    text-transform: uppercase;
+    min-height: 50px !important;
+    white-space: normal !important;
+    line-height: 1.4 !important;
+}
+
+.move-btn:hover {
+    background: linear-gradient(180deg, #ffffff 0%, #e8e8e8 100%) !important;
+    transform: translate(1px, 1px) !important;
+    box-shadow:
+        inset -2px -2px 0 #a0a0a0,
+        inset 2px 2px 0 #ffffff,
+        2px 2px 0 #202020 !important;
+}
+
+.move-btn:active {
+    transform: translate(3px, 3px) !important;
+    box-shadow:
+        inset -2px -2px 0 #a0a0a0,
+        inset 2px 2px 0 #ffffff,
+        0 0 0 #202020 !important;
+}
