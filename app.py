@@ -125,17 +125,41 @@ STAT_STAGE_MULTIPLIERS = {
     1: 3/2, 2: 4/2, 3: 5/2, 4: 6/2, 5: 7/2, 6: 8/2
 }
 
+# Accuracy/Evasion stage multipliers
+ACC_EVA_MULTIPLIERS = {
+    -6: 3/9, -5: 3/8, -4: 3/7, -3: 3/6, -2: 3/5, -1: 3/4,
+    0: 1.0,
+    1: 4/3, 2: 5/3, 3: 6/3, 4: 7/3, 5: 8/3, 6: 9/3
+}
+
+# Status condition constants
+STATUS_CONDITIONS = {
+    'burn': {'damage_fraction': 1/16, 'halve_physical': True},
+    'poison': {'damage_fraction': 1/8},
+    'paralysis': {'skip_chance': 0.25, 'speed_multiplier': 0.5},
+    'sleep': {'min_turns': 1, 'max_turns': 3},
+    'freeze': {'thaw_chance': 0.20}
+}
+
+# Default stat stages for a fresh battle
+def get_default_stat_stages():
+    return {'atk': 0, 'def': 0, 'spa': 0, 'spd': 0, 'spe': 0, 'acc': 0, 'eva': 0}
+
 def get_stat_multiplier(stage: int) -> float:
     """Get the stat multiplier for a given stage (-6 to +6)."""
     return STAT_STAGE_MULTIPLIERS.get(max(-6, min(6, stage)), 1.0)
 
+def get_acc_eva_multiplier(stage: int) -> float:
+    """Get accuracy/evasion multiplier for a given stage."""
+    return ACC_EVA_MULTIPLIERS.get(max(-6, min(6, stage)), 1.0)
+
 async def get_pokemon_moves(pokemon_data: dict, limit: int = 4) -> list[dict]:
-    """Fetch best damaging moves for a Pokemon by searching through all moves."""
+    """Fetch best damaging moves for a Pokemon, including priority and effects."""
     all_moves = pokemon_data.get('moves', [])
     damaging_moves = []
     
     # Try to find good damaging moves by checking more moves
-    sample_size = min(20, len(all_moves))  # Check up to 20 moves
+    sample_size = min(25, len(all_moves))  # Check up to 25 moves
     sampled = random.sample(all_moves, sample_size) if len(all_moves) >= sample_size else all_moves
     
     for move_entry in sampled:
@@ -143,6 +167,24 @@ async def get_pokemon_moves(pokemon_data: dict, limit: int = 4) -> list[dict]:
             break
         move_data = await fetch_move_data(move_entry['move']['url'])
         if move_data and move_data.get('power') and move_data.get('power') > 0:
+            # Extract status effect if any
+            ailment = None
+            ailment_chance = 0
+            meta = move_data.get('meta', {})
+            if meta:
+                ailment_data = meta.get('ailment', {})
+                if ailment_data and ailment_data.get('name') != 'none':
+                    ailment = ailment_data.get('name')
+                    ailment_chance = meta.get('ailment_chance', 0)
+            
+            # Extract stat changes
+            stat_changes = []
+            for sc in move_data.get('stat_changes', []):
+                stat_changes.append({
+                    'stat': sc['stat']['name'],
+                    'change': sc['change']
+                })
+            
             damaging_moves.append({
                 'name': move_data['name'].replace('-', ' ').title(),
                 'power': move_data.get('power', 50),
@@ -150,6 +192,11 @@ async def get_pokemon_moves(pokemon_data: dict, limit: int = 4) -> list[dict]:
                 'type': move_data['type']['name'],
                 'category': move_data.get('damage_class', {}).get('name', 'physical'),
                 'pp': move_data.get('pp', 10),
+                'priority': move_data.get('priority', 0),  # NEW: Move priority
+                'ailment': ailment,  # NEW: Status effect (burn, poison, etc.)
+                'ailment_chance': ailment_chance,  # NEW: % chance to inflict
+                'stat_changes': stat_changes,  # NEW: Stat modifications
+                'flinch_chance': meta.get('flinch_chance', 0) if meta else 0,  # NEW
             })
     
     # Sort by power (strongest first)
@@ -163,10 +210,16 @@ async def get_pokemon_moves(pokemon_data: dict, limit: int = 4) -> list[dict]:
             'accuracy': 100,
             'type': 'normal',
             'category': 'physical',
-            'pp': 999
+            'pp': 999,
+            'priority': 0,
+            'ailment': None,
+            'ailment_chance': 0,
+            'stat_changes': [],
+            'flinch_chance': 0,
         })
     
     return damaging_moves[:4]
+
 
 def get_stab_multiplier(pokemon: dict, move_type: str) -> float:
     """Check if move gets STAB (Same-Type Attack Bonus)."""
@@ -184,23 +237,49 @@ async def calculate_damage_enhanced(
     defender: dict, 
     move: dict, 
     weather: str, 
-    critical: bool = False
+    critical: bool = False,
+    attacker_stat_stages: dict = None,
+    defender_stat_stages: dict = None,
+    attacker_status: str = None
 ) -> tuple[int, str, bool]:
     """
-    Enhanced damage calculation with STAB and Physical/Special split.
+    Enhanced damage calculation with STAB, Physical/Special split, stat stages, and burn.
     Returns (damage, effectiveness_text, stab_applied)
     """
+    if attacker_stat_stages is None:
+        attacker_stat_stages = get_default_stat_stages()
+    if defender_stat_stages is None:
+        defender_stat_stages = get_default_stat_stages()
+    
     power = move.get('power') or 50
     move_type = move.get('type', 'normal')
     category = move.get('category', 'physical')
     
-    # Physical vs Special split
+    # Physical vs Special split with stat stages
     if category == 'physical':
-        attack = attacker['stats'][1]['base_stat']   # Attack
-        defense = defender['stats'][2]['base_stat']  # Defense
+        base_attack = attacker['stats'][1]['base_stat']   # Attack
+        base_defense = defender['stats'][2]['base_stat']  # Defense
+        # Apply stat stage multipliers (ignore if critical hit)
+        if critical:
+            # Critical ignores negative atk stages and positive def stages
+            atk_mult = max(1.0, get_stat_multiplier(attacker_stat_stages.get('atk', 0)))
+            def_mult = min(1.0, get_stat_multiplier(defender_stat_stages.get('def', 0)))
+        else:
+            atk_mult = get_stat_multiplier(attacker_stat_stages.get('atk', 0))
+            def_mult = get_stat_multiplier(defender_stat_stages.get('def', 0))
+        attack = base_attack * atk_mult
+        defense = base_defense * def_mult
     else:  # special
-        attack = attacker['stats'][3]['base_stat']   # Sp. Atk
-        defense = defender['stats'][4]['base_stat']  # Sp. Def
+        base_attack = attacker['stats'][3]['base_stat']   # Sp. Atk
+        base_defense = defender['stats'][4]['base_stat']  # Sp. Def
+        if critical:
+            atk_mult = max(1.0, get_stat_multiplier(attacker_stat_stages.get('spa', 0)))
+            def_mult = min(1.0, get_stat_multiplier(defender_stat_stages.get('spd', 0)))
+        else:
+            atk_mult = get_stat_multiplier(attacker_stat_stages.get('spa', 0))
+            def_mult = get_stat_multiplier(defender_stat_stages.get('spd', 0))
+        attack = base_attack * atk_mult
+        defense = base_defense * def_mult
     
     # STAB (Same-Type Attack Bonus)
     stab = get_stab_multiplier(attacker, move_type)
@@ -208,6 +287,11 @@ async def calculate_damage_enhanced(
     
     # Critical hit multiplier
     crit_mult = 1.5 if critical else 1.0
+    
+    # Burn halves physical damage (unless ability prevents it)
+    burn_mult = 1.0
+    if attacker_status == 'burn' and category == 'physical':
+        burn_mult = 0.5
     
     # Weather multiplier
     weather_mult = 1.0
@@ -246,7 +330,7 @@ async def calculate_damage_enhanced(
     # Damage formula (Gen V+)
     level = 50  # Fixed level for now
     base_damage = ((2 * level / 5 + 2) * power * (attack / defense) / 50 + 2)
-    final_damage = base_damage * stab * effectiveness * weather_mult * crit_mult
+    final_damage = base_damage * stab * effectiveness * weather_mult * crit_mult * burn_mult
     
     # Random variance (0.85 to 1.0)
     variance = random.uniform(0.85, 1.0)
@@ -260,24 +344,43 @@ async def execute_turn(
     move: dict,
     weather: str,
     attacker_name: str,
-    defender_name: str
-) -> tuple[int, list[dict]]:
-    """Execute a single turn and return (damage_dealt, events)."""
-    events = []
+    defender_name: str,
+    attacker_stat_stages: dict = None,
+    defender_stat_stages: dict = None,
+    attacker_status: str = None,
+    defender_status: str = None
+) -> tuple[int, list[dict], str | None, dict | None]:
+    """
+    Execute a single attack turn.
+    Returns (damage_dealt, events, inflicted_status, stat_changes_to_apply)
+    """
+    if attacker_stat_stages is None:
+        attacker_stat_stages = get_default_stat_stages()
+    if defender_stat_stages is None:
+        defender_stat_stages = get_default_stat_stages()
     
-    # Check accuracy
-    accuracy = move.get('accuracy', 100)
-    if random.randint(1, 100) > accuracy:
+    events = []
+    inflicted_status = None
+    stat_changes_result = None
+    
+    # Check accuracy with accuracy/evasion stages
+    base_accuracy = move.get('accuracy', 100) or 100
+    acc_mult = get_acc_eva_multiplier(attacker_stat_stages.get('acc', 0))
+    eva_mult = get_acc_eva_multiplier(defender_stat_stages.get('eva', 0))
+    final_accuracy = base_accuracy * acc_mult / eva_mult
+    
+    if random.randint(1, 100) > final_accuracy:
         events.append({
             "type": "miss",
             "message": f"{attacker_name}'s attack missed!"
         })
-        return 0, events
+        return 0, events, None, None
     
     # Calculate damage
     critical = random.random() < 0.0625  # 1/16 chance
     damage, eff_text, stab_applied = await calculate_damage_enhanced(
-        attacker, defender, move, weather, critical
+        attacker, defender, move, weather, critical,
+        attacker_stat_stages, defender_stat_stages, attacker_status
     )
     
     # Attack message
@@ -314,7 +417,46 @@ async def execute_turn(
         "message": f"   {damage} damage ({category_label})!"
     })
     
-    return damage, events
+    # Check for status infliction (only if target doesn't have a status)
+    ailment = move.get('ailment')
+    ailment_chance = move.get('ailment_chance', 0)
+    if ailment and not defender_status and damage > 0:
+        # Map PokeAPI ailment names to our status names
+        ailment_map = {
+            'burn': 'burn', 'poison': 'poison', 'paralysis': 'paralysis',
+            'sleep': 'sleep', 'freeze': 'freeze', 'toxic': 'poison'  # toxic -> poison simplified
+        }
+        mapped_ailment = ailment_map.get(ailment)
+        if mapped_ailment and random.randint(1, 100) <= ailment_chance:
+            inflicted_status = mapped_ailment
+            status_names = {'burn': 'burned', 'poison': 'poisoned', 'paralysis': 'paralyzed', 
+                          'sleep': 'fell asleep', 'freeze': 'was frozen'}
+            events.append({
+                "type": "status",
+                "message": f"{defender_name} {status_names.get(mapped_ailment, 'was affected')}!"
+            })
+    
+    # Check for stat changes (applied to self or target based on move)
+    stat_changes = move.get('stat_changes', [])
+    if stat_changes and damage > 0:
+        stat_changes_result = {}
+        for sc in stat_changes:
+            stat = sc['stat']
+            change = sc['change']
+            # Map PokeAPI stat names to our abbreviations
+            stat_map = {'attack': 'atk', 'defense': 'def', 'special-attack': 'spa',
+                       'special-defense': 'spd', 'speed': 'spe', 'accuracy': 'acc', 'evasion': 'eva'}
+            mapped_stat = stat_map.get(stat, stat)
+            stat_changes_result[mapped_stat] = change
+            
+            direction = "rose" if change > 0 else "fell"
+            sharply = " sharply" if abs(change) >= 2 else ""
+            events.append({
+                "type": "stat_change",
+                "message": f"{defender_name}'s {stat.upper()}{sharply} {direction}!"
+            })
+    
+    return damage, events, inflicted_status, stat_changes_result
 
 async def run_battle_turn(
     player_pokemon: dict,
@@ -325,32 +467,64 @@ async def run_battle_turn(
     opponent_hp: int,
     max_player_hp: int,
     max_opponent_hp: int,
-    turn_number: int = 1
-) -> tuple[int, int, list[dict], str | None]:
+    turn_number: int = 1,
+    player_status: str = None,
+    opponent_status: str = None,
+    player_stat_stages: dict = None,
+    opponent_stat_stages: dict = None,
+    player_sleep_turns: int = 0,
+    opponent_sleep_turns: int = 0
+) -> tuple[int, int, list[dict], str | None, str, str, dict, dict, int, int]:
     """
-    Run a single battle turn with player move selection.
-    Returns (new_player_hp, new_opponent_hp, events, winner)
+    Run a single battle turn with full mechanics.
+    Returns (new_player_hp, new_opponent_hp, events, winner, 
+             new_player_status, new_opponent_status,
+             new_player_stat_stages, new_opponent_stat_stages,
+             new_player_sleep_turns, new_opponent_sleep_turns)
     """
+    if player_stat_stages is None:
+        player_stat_stages = get_default_stat_stages()
+    if opponent_stat_stages is None:
+        opponent_stat_stages = get_default_stat_stages()
+    
     events = []
     winner = None
     
     player_name = player_pokemon['name'].capitalize()
     opponent_name = opponent_pokemon['name'].capitalize()
     
-    # Determine turn order based on Speed
+    # Get opponent's move
+    opponent_moves = await get_pokemon_moves(opponent_pokemon)
+    opponent_move = random.choice(opponent_moves)
+    
+    # Determine turn order: Priority first, then Speed
+    player_priority = player_move.get('priority', 0)
+    opponent_priority = opponent_move.get('priority', 0)
+    
     player_speed = get_speed(player_pokemon)
     opponent_speed = get_speed(opponent_pokemon)
     
-    if player_speed > opponent_speed:
+    # Apply paralysis speed reduction
+    if player_status == 'paralysis':
+        player_speed = int(player_speed * 0.5)
+    if opponent_status == 'paralysis':
+        opponent_speed = int(opponent_speed * 0.5)
+    
+    # Apply speed stat stages
+    player_speed = int(player_speed * get_stat_multiplier(player_stat_stages.get('spe', 0)))
+    opponent_speed = int(opponent_speed * get_stat_multiplier(opponent_stat_stages.get('spe', 0)))
+    
+    # Determine order
+    if player_priority > opponent_priority:
+        first = "player"
+    elif opponent_priority > player_priority:
+        first = "opponent"
+    elif player_speed > opponent_speed:
         first = "player"
     elif opponent_speed > player_speed:
         first = "opponent"
     else:
         first = random.choice(["player", "opponent"])
-    
-    # Opponent selects a random move
-    opponent_moves = await get_pokemon_moves(opponent_pokemon)
-    opponent_move = random.choice(opponent_moves)
     
     # Helper to add turn number to events
     def tag_events(event_list):
@@ -358,80 +532,171 @@ async def run_battle_turn(
             e['turn'] = turn_number
         return event_list
     
-    # Execute turns in speed order
+    # Helper to check if Pokemon can act (status checks)
+    def can_act(status, name, sleep_turns):
+        if status == 'freeze':
+            if random.random() < 0.20:  # 20% thaw chance
+                return True, f"{name} thawed out!", None, 0
+            return False, f"{name} is frozen solid!", 'freeze', 0
+        elif status == 'sleep':
+            if sleep_turns <= 0:
+                return True, f"{name} woke up!", None, 0
+            return False, f"{name} is fast asleep!", 'sleep', sleep_turns - 1
+        elif status == 'paralysis':
+            if random.random() < 0.25:  # 25% full paralysis
+                return False, f"{name} is fully paralyzed!", 'paralysis', 0
+            return True, None, 'paralysis', 0
+        return True, None, status, sleep_turns
+    
+    # Execute first attacker
     if first == "player":
-        # Player attacks first
-        damage, turn_events = await execute_turn(
-            player_pokemon, opponent_pokemon, player_move, weather,
-            player_name, opponent_name
-        )
-        events.extend(tag_events(turn_events))
-        opponent_hp = max(0, opponent_hp - damage)
+        # Player acts first
+        can_move, msg, new_p_status, new_p_sleep = can_act(player_status, player_name, player_sleep_turns)
+        player_status = new_p_status
+        player_sleep_turns = new_p_sleep
+        
+        if msg:
+            events.append({"type": "status", "message": msg})
+        
+        if can_move:
+            damage, turn_events, inflicted, stat_changes = await execute_turn(
+                player_pokemon, opponent_pokemon, player_move, weather,
+                player_name, opponent_name,
+                player_stat_stages, opponent_stat_stages,
+                player_status, opponent_status
+            )
+            events.extend(tag_events(turn_events))
+            opponent_hp = max(0, opponent_hp - damage)
+            
+            if inflicted:
+                opponent_status = inflicted
+            if stat_changes:
+                for stat, change in stat_changes.items():
+                    opponent_stat_stages[stat] = max(-6, min(6, opponent_stat_stages.get(stat, 0) + change))
         
         if opponent_hp <= 0:
-            events.append({
-                "type": "victory",
-                "message": f"{opponent_name} fainted! {player_name} wins!",
-                "turn": turn_number
-            })
-            return player_hp, 0, events, "player"
+            events.append({"type": "victory", "message": f"{opponent_name} fainted! {player_name} wins!", "turn": turn_number})
+            return player_hp, 0, events, "player", player_status, opponent_status, player_stat_stages, opponent_stat_stages, player_sleep_turns, opponent_sleep_turns
         
-        # Opponent attacks
-        damage, turn_events = await execute_turn(
-            opponent_pokemon, player_pokemon, opponent_move, weather,
-            opponent_name, player_name
-        )
-        events.extend(tag_events(turn_events))
-        player_hp = max(0, player_hp - damage)
+        # Opponent acts second
+        can_move, msg, new_o_status, new_o_sleep = can_act(opponent_status, opponent_name, opponent_sleep_turns)
+        opponent_status = new_o_status
+        opponent_sleep_turns = new_o_sleep
+        
+        if msg:
+            events.append({"type": "status", "message": msg})
+        
+        if can_move:
+            damage, turn_events, inflicted, stat_changes = await execute_turn(
+                opponent_pokemon, player_pokemon, opponent_move, weather,
+                opponent_name, player_name,
+                opponent_stat_stages, player_stat_stages,
+                opponent_status, player_status
+            )
+            events.extend(tag_events(turn_events))
+            player_hp = max(0, player_hp - damage)
+            
+            if inflicted:
+                player_status = inflicted
+                if inflicted == 'sleep':
+                    player_sleep_turns = random.randint(1, 3)
+            if stat_changes:
+                for stat, change in stat_changes.items():
+                    player_stat_stages[stat] = max(-6, min(6, player_stat_stages.get(stat, 0) + change))
         
         if player_hp <= 0:
-            events.append({
-                "type": "defeat",
-                "message": f"{player_name} fainted! {opponent_name} wins!",
-                "turn": turn_number
-            })
-            return 0, opponent_hp, events, "opponent"
+            events.append({"type": "defeat", "message": f"{player_name} fainted! {opponent_name} wins!", "turn": turn_number})
+            return 0, opponent_hp, events, "opponent", player_status, opponent_status, player_stat_stages, opponent_stat_stages, player_sleep_turns, opponent_sleep_turns
     else:
-        # Opponent attacks first
-        damage, turn_events = await execute_turn(
-            opponent_pokemon, player_pokemon, opponent_move, weather,
-            opponent_name, player_name
-        )
-        events.extend(tag_events(turn_events))
-        player_hp = max(0, player_hp - damage)
+        # Opponent acts first
+        can_move, msg, new_o_status, new_o_sleep = can_act(opponent_status, opponent_name, opponent_sleep_turns)
+        opponent_status = new_o_status
+        opponent_sleep_turns = new_o_sleep
+        
+        if msg:
+            events.append({"type": "status", "message": msg})
+        
+        if can_move:
+            damage, turn_events, inflicted, stat_changes = await execute_turn(
+                opponent_pokemon, player_pokemon, opponent_move, weather,
+                opponent_name, player_name,
+                opponent_stat_stages, player_stat_stages,
+                opponent_status, player_status
+            )
+            events.extend(tag_events(turn_events))
+            player_hp = max(0, player_hp - damage)
+            
+            if inflicted:
+                player_status = inflicted
+                if inflicted == 'sleep':
+                    player_sleep_turns = random.randint(1, 3)
+            if stat_changes:
+                for stat, change in stat_changes.items():
+                    player_stat_stages[stat] = max(-6, min(6, player_stat_stages.get(stat, 0) + change))
         
         if player_hp <= 0:
-            events.append({
-                "type": "defeat",
-                "message": f"{player_name} fainted! {opponent_name} wins!",
-                "turn": turn_number
-            })
-            return 0, opponent_hp, events, "opponent"
+            events.append({"type": "defeat", "message": f"{player_name} fainted! {opponent_name} wins!", "turn": turn_number})
+            return 0, opponent_hp, events, "opponent", player_status, opponent_status, player_stat_stages, opponent_stat_stages, player_sleep_turns, opponent_sleep_turns
         
-        # Player attacks
-        damage, turn_events = await execute_turn(
-            player_pokemon, opponent_pokemon, player_move, weather,
-            player_name, opponent_name
-        )
-        events.extend(tag_events(turn_events))
-        opponent_hp = max(0, opponent_hp - damage)
+        # Player acts second
+        can_move, msg, new_p_status, new_p_sleep = can_act(player_status, player_name, player_sleep_turns)
+        player_status = new_p_status
+        player_sleep_turns = new_p_sleep
+        
+        if msg:
+            events.append({"type": "status", "message": msg})
+        
+        if can_move:
+            damage, turn_events, inflicted, stat_changes = await execute_turn(
+                player_pokemon, opponent_pokemon, player_move, weather,
+                player_name, opponent_name,
+                player_stat_stages, opponent_stat_stages,
+                player_status, opponent_status
+            )
+            events.extend(tag_events(turn_events))
+            opponent_hp = max(0, opponent_hp - damage)
+            
+            if inflicted:
+                opponent_status = inflicted
+            if stat_changes:
+                for stat, change in stat_changes.items():
+                    opponent_stat_stages[stat] = max(-6, min(6, opponent_stat_stages.get(stat, 0) + change))
         
         if opponent_hp <= 0:
-            events.append({
-                "type": "victory",
-                "message": f"{opponent_name} fainted! {player_name} wins!",
-                "turn": turn_number
-            })
-            return player_hp, 0, events, "player"
+            events.append({"type": "victory", "message": f"{opponent_name} fainted! {player_name} wins!", "turn": turn_number})
+            return player_hp, 0, events, "player", player_status, opponent_status, player_stat_stages, opponent_stat_stages, player_sleep_turns, opponent_sleep_turns
+    
+    # End of turn: Apply status damage (burn, poison)
+    if player_status == 'burn':
+        burn_dmg = max(1, int(max_player_hp / 16))
+        player_hp = max(0, player_hp - burn_dmg)
+        events.append({"type": "status_damage", "message": f"{player_name} is hurt by burn! (-{burn_dmg} HP)", "turn": turn_number})
+    elif player_status == 'poison':
+        poison_dmg = max(1, int(max_player_hp / 8))
+        player_hp = max(0, player_hp - poison_dmg)
+        events.append({"type": "status_damage", "message": f"{player_name} is hurt by poison! (-{poison_dmg} HP)", "turn": turn_number})
+    
+    if opponent_status == 'burn':
+        burn_dmg = max(1, int(max_opponent_hp / 16))
+        opponent_hp = max(0, opponent_hp - burn_dmg)
+        events.append({"type": "status_damage", "message": f"{opponent_name} is hurt by burn! (-{burn_dmg} HP)", "turn": turn_number})
+    elif opponent_status == 'poison':
+        poison_dmg = max(1, int(max_opponent_hp / 8))
+        opponent_hp = max(0, opponent_hp - poison_dmg)
+        events.append({"type": "status_damage", "message": f"{opponent_name} is hurt by poison! (-{poison_dmg} HP)", "turn": turn_number})
+    
+    # Check for faint from status damage
+    if player_hp <= 0:
+        events.append({"type": "defeat", "message": f"{player_name} fainted! {opponent_name} wins!", "turn": turn_number})
+        return 0, opponent_hp, events, "opponent", player_status, opponent_status, player_stat_stages, opponent_stat_stages, player_sleep_turns, opponent_sleep_turns
+    if opponent_hp <= 0:
+        events.append({"type": "victory", "message": f"{opponent_name} fainted! {player_name} wins!", "turn": turn_number})
+        return player_hp, 0, events, "player", player_status, opponent_status, player_stat_stages, opponent_stat_stages, player_sleep_turns, opponent_sleep_turns
     
     # Add prompt for next turn
-    events.append({
-        "type": "prompt",
-        "message": f"What will {player_name} do?",
-        "turn": turn_number
-    })
+    events.append({"type": "prompt", "message": f"What will {player_name} do?", "turn": turn_number})
     
-    return player_hp, opponent_hp, events, None
+    return player_hp, opponent_hp, events, None, player_status, opponent_status, player_stat_stages, opponent_stat_stages, player_sleep_turns, opponent_sleep_turns
 
 # ══════════════════════════════════════════════════════════════════════════════
 # UI COMPONENTS
@@ -599,6 +864,9 @@ def format_battle_log(events: list[dict], turn_number: int = 0, player_name: str
             "effectiveness": "color: #78c850; padding-left: 16px;" if "super" in message.lower() else "color: #a040a0; padding-left: 16px;",
             "damage": "color: #505050; padding-left: 16px; font-size: 10px;",
             "miss": "color: #808080; padding-left: 16px;",
+            "status": "color: #a040a0; padding-left: 12px; font-style: italic;",
+            "status_damage": "color: #e03838; padding-left: 12px; font-size: 10px;",
+            "stat_change": "color: #6890f0; padding-left: 12px; font-size: 10px;",
             "victory": "color: #20d070; font-weight: bold; background: #e8f8e8; padding: 12px; border: 3px solid #20d070; border-radius: 8px; margin-top: 12px; text-align: center;",
             "defeat": "color: #e03838; font-weight: bold; background: #f8e8e8; padding: 12px; border: 3px solid #e03838; border-radius: 8px; margin-top: 12px; text-align: center;",
             "prompt": "color: #303030; margin-top: 12px; padding-top: 8px; border-top: 2px solid #c0c0c0;",
@@ -641,6 +909,14 @@ with gr.Blocks(
     player_moves_state = gr.State([])  # List of 4 moves with full data
     battle_active_state = gr.State(False)
     turn_counter_state = gr.State(0)  # Track current turn number
+    
+    # Status conditions and stat stages
+    player_status_state = gr.State(None)  # burn, poison, paralysis, sleep, freeze
+    opponent_status_state = gr.State(None)
+    player_stat_stages_state = gr.State(None)  # {"atk": 0, "def": 0, ...}
+    opponent_stat_stages_state = gr.State(None)
+    player_sleep_turns_state = gr.State(0)
+    opponent_sleep_turns_state = gr.State(0)
     
     # ══════════════════════════════════════════════════════════════════════════
     # HEADER
@@ -902,6 +1178,66 @@ with gr.Blocks(
             new_p_hp, new_o_hp, all_events, battle_active, new_turn
         )
     
+    async def use_move_full(move_index, player_data, opponent_data, weather, player_hp, opponent_hp, 
+                           max_p_hp, max_o_hp, player_moves, prev_events, battle_active, turn_counter,
+                           p_status, o_status, p_stat_stages, o_stat_stages, p_sleep, o_sleep):
+        """Execute a turn with the selected move (with full state tracking)."""
+        if not battle_active or not player_data or not opponent_data or not player_moves:
+            return (
+                format_battle_log(prev_events) if prev_events else "Select Pokemon and start battle!",
+                create_hp_bar_html("???", 100, is_player=True),
+                create_hp_bar_html("???", 100, is_player=False),
+                gr.update(visible=False),
+                player_hp, opponent_hp, prev_events, battle_active, turn_counter,
+                p_status, o_status, p_stat_stages, o_stat_stages, p_sleep, o_sleep
+            )
+        
+        # Increment turn counter
+        new_turn = turn_counter + 1
+        
+        selected_move = player_moves[move_index]
+        player_name = player_data['name'].capitalize()
+        
+        # Initialize stat stages if needed
+        if p_stat_stages is None:
+            p_stat_stages = get_default_stat_stages()
+        if o_stat_stages is None:
+            o_stat_stages = get_default_stat_stages()
+        
+        # Execute the turn with full mechanics
+        (new_p_hp, new_o_hp, events, winner, 
+         new_p_status, new_o_status, new_p_stages, new_o_stages,
+         new_p_sleep, new_o_sleep) = await run_battle_turn(
+            player_data, opponent_data, selected_move, weather,
+            player_hp, opponent_hp, max_p_hp, max_o_hp, new_turn,
+            p_status, o_status, p_stat_stages, o_stat_stages, p_sleep, o_sleep
+        )
+        
+        # Combine with previous events
+        all_events = prev_events + events
+        
+        opponent_name = opponent_data['name'].capitalize()
+        
+        # Check if battle ended
+        if winner:
+            return (
+                format_battle_log(all_events, new_turn, player_name),
+                create_hp_bar_html(player_name, max(0, int(new_p_hp / max_p_hp * 100)), is_player=True),
+                create_hp_bar_html(opponent_name, max(0, int(new_o_hp / max_o_hp * 100)), is_player=False),
+                gr.update(visible=False),  # Hide move selection
+                new_p_hp, new_o_hp, all_events, False, new_turn,
+                new_p_status, new_o_status, new_p_stages, new_o_stages, new_p_sleep, new_o_sleep
+            )
+        
+        return (
+            format_battle_log(all_events, new_turn, player_name),
+            create_hp_bar_html(player_name, max(0, int(new_p_hp / max_p_hp * 100)), is_player=True),
+            create_hp_bar_html(opponent_name, max(0, int(new_o_hp / max_o_hp * 100)), is_player=False),
+            gr.update(visible=True),  # Keep move selection visible
+            new_p_hp, new_o_hp, all_events, battle_active, new_turn,
+            new_p_status, new_o_status, new_p_stages, new_o_stages, new_p_sleep, new_o_sleep
+        )
+    
     def reset_battle():
         """Reset the battle state."""
         return (
@@ -919,7 +1255,10 @@ with gr.Blocks(
             [],  # events
             False,  # battle_active
             [],  # player_moves
-            0  # turn_counter reset
+            0,  # turn_counter reset
+            None, None,  # status reset
+            None, None,  # stat stages reset
+            0, 0  # sleep turns reset
         )
     
     # Wire up events
@@ -954,27 +1293,33 @@ with gr.Blocks(
         ]
     )
     
-    # Move button handlers - create wrapper functions for each move
+    # Move button handlers - create wrapper functions for each move (using full state)
     async def use_move_1(*args):
-        return await use_move(0, *args)
+        return await use_move_full(0, *args)
     
     async def use_move_2(*args):
-        return await use_move(1, *args)
+        return await use_move_full(1, *args)
     
     async def use_move_3(*args):
-        return await use_move(2, *args)
+        return await use_move_full(2, *args)
     
     async def use_move_4(*args):
-        return await use_move(3, *args)
+        return await use_move_full(3, *args)
     
     move_inputs = [
         player_pokemon_state, opponent_pokemon_state, weather_dropdown,
         player_hp_state, opponent_hp_state, max_player_hp_state, max_opponent_hp_state,
-        player_moves_state, battle_events_state, battle_active_state, turn_counter_state
+        player_moves_state, battle_events_state, battle_active_state, turn_counter_state,
+        player_status_state, opponent_status_state,
+        player_stat_stages_state, opponent_stat_stages_state,
+        player_sleep_turns_state, opponent_sleep_turns_state
     ]
     move_outputs = [
         battle_log, player_hp_bar, opponent_hp_bar, move_selection_area,
-        player_hp_state, opponent_hp_state, battle_events_state, battle_active_state, turn_counter_state
+        player_hp_state, opponent_hp_state, battle_events_state, battle_active_state, turn_counter_state,
+        player_status_state, opponent_status_state,
+        player_stat_stages_state, opponent_stat_stages_state,
+        player_sleep_turns_state, opponent_sleep_turns_state
     ]
     
     move_btn_1.click(
@@ -1005,7 +1350,10 @@ with gr.Blocks(
             battle_log, player_hp_bar, opponent_hp_bar,
             battle_arena, move_selection_area,
             player_hp_state, opponent_hp_state, max_player_hp_state, max_opponent_hp_state,
-            battle_events_state, battle_active_state, player_moves_state, turn_counter_state
+            battle_events_state, battle_active_state, player_moves_state, turn_counter_state,
+            player_status_state, opponent_status_state,
+            player_stat_stages_state, opponent_stat_stages_state,
+            player_sleep_turns_state, opponent_sleep_turns_state
         ]
     )
     
