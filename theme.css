@@ -1,0 +1,725 @@
+/* Pokemon Battle GUI - Nintendo Pokemon Game Style Theme */
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+:root {
+    /* Pokemon Game Color Palette */
+    --bg-grass: #88c070;
+    --bg-grass-dark: #68a050;
+    --bg-grass-light: #a8d090;
+
+    --panel-bg: #f8f8f8;
+    --panel-border: #404040;
+    --panel-border-light: #d8d8d8;
+    --panel-shadow: #303030;
+
+    --hp-green: #20d070;
+    --hp-yellow: #f8c830;
+    --hp-red: #f85030;
+    --hp-bar-bg: #484848;
+
+    --exp-blue: #58a8f8;
+
+    --text-dark: #303030;
+    --text-light: #f8f8f8;
+
+    --pokemon-red: #e03838;
+    --pokemon-blue: #4080c0;
+    --pokemon-yellow: #f8d030;
+}
+
+/* Global Reset for Pokemon Style */
+.gradio-container {
+    background: linear-gradient(180deg, #78b8e8 0%, #58a0d0 50%, var(--bg-grass) 50%, var(--bg-grass-dark) 100%) !important;
+    font-family: 'Press Start 2P', monospace !important;
+    min-height: 100vh;
+    image-rendering: pixelated;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   POKEMON-STYLE PANEL (Textbox Style)
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.pokemon-panel {
+    background: var(--panel-bg) !important;
+    border: 4px solid var(--panel-border) !important;
+    border-radius: 12px !important;
+    box-shadow:
+        inset -4px -4px 0 var(--panel-border-light),
+        inset 4px 4px 0 #ffffff,
+        6px 6px 0 var(--panel-shadow) !important;
+    padding: 16px !important;
+    position: relative;
+}
+
+.pokemon-panel::before {
+    content: '';
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    right: 4px;
+    bottom: 4px;
+    border: 2px solid var(--panel-border-light);
+    border-radius: 8px;
+    pointer-events: none;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   POKEMON HP BOX (Classic Style)
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.hp-box {
+    background: linear-gradient(180deg, #e8e8e8 0%, #d0d0d0 100%);
+    border: 3px solid #404040;
+    border-radius: 0 0 16px 0;
+    padding: 8px 16px;
+    box-shadow:
+        inset -2px -2px 0 #a0a0a0,
+        inset 2px 2px 0 #ffffff;
+    min-width: 200px;
+}
+
+.hp-box-enemy {
+    border-radius: 0 0 0 16px;
+    float: right;
+}
+
+.pokemon-name {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 14px;
+    color: var(--text-dark);
+    margin-bottom: 4px;
+    text-transform: uppercase;
+}
+
+.pokemon-level {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 11px;
+    color: var(--text-dark);
+    float: right;
+}
+
+.hp-label {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 10px;
+    color: #f89030;
+    margin-right: 4px;
+}
+
+.hp-bar-outer {
+    background: var(--hp-bar-bg);
+    border-radius: 4px;
+    height: 8px;
+    padding: 2px;
+    box-shadow: inset 1px 1px 0 #202020;
+}
+
+.hp-bar-inner {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.5s ease-out, background-color 0.3s ease;
+}
+
+.hp-bar-green {
+    background: linear-gradient(180deg, #70f880 0%, var(--hp-green) 50%, #18a050 100%);
+}
+
+.hp-bar-yellow {
+    background: linear-gradient(180deg, #f8e870 0%, var(--hp-yellow) 50%, #c8a028 100%);
+}
+
+.hp-bar-red {
+    background: linear-gradient(180deg, #f88070 0%, var(--hp-red) 50%, #c03020 100%);
+}
+
+.hp-numbers {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 12px;
+    color: var(--text-dark);
+    text-align: right;
+    margin-top: 4px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   BATTLE MENU (Classic 2x2 Grid)
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.battle-menu {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    background: var(--panel-bg);
+    border: 4px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 12px;
+    box-shadow:
+        inset -4px -4px 0 var(--panel-border-light),
+        inset 4px 4px 0 #ffffff,
+        6px 6px 0 var(--panel-shadow);
+}
+
+.battle-menu-btn {
+    font-family: 'Press Start 2P', monospace !important;
+    font-size: 12px !important;
+    color: var(--text-dark) !important;
+    background: transparent !important;
+    border: none !important;
+    padding: 12px 16px !important;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.1s ease;
+    position: relative;
+}
+
+.battle-menu-btn::before {
+    content: '▶';
+    position: absolute;
+    left: 0;
+    opacity: 0;
+    transition: opacity 0.1s ease;
+}
+
+.battle-menu-btn:hover::before,
+.battle-menu-btn:focus::before {
+    opacity: 1;
+}
+
+.battle-menu-btn:hover,
+.battle-menu-btn:focus {
+    padding-left: 24px !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   MESSAGE BOX (Bottom Text Box)
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.message-box {
+    background: var(--panel-bg);
+    border: 4px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 16px 20px;
+    box-shadow:
+        inset -4px -4px 0 var(--panel-border-light),
+        inset 4px 4px 0 #ffffff,
+        6px 6px 0 var(--panel-shadow);
+    min-height: 80px;
+}
+
+.message-text {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 14px;
+    color: var(--text-dark);
+    line-height: 2;
+    text-transform: uppercase;
+}
+
+/* Blinking cursor indicator */
+.message-box::after {
+    content: '▼';
+    font-family: 'Press Start 2P', monospace;
+    font-size: 12px;
+    position: absolute;
+    bottom: 12px;
+    right: 16px;
+    animation: blink 0.8s infinite;
+}
+
+@keyframes blink {
+
+    0%,
+    50% {
+        opacity: 1;
+    }
+
+    51%,
+    100% {
+        opacity: 0;
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   POKEMON SPRITE AREA
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.sprite-area {
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    min-height: 180px;
+    position: relative;
+}
+
+.sprite-platform {
+    width: 120px;
+    height: 20px;
+    background: linear-gradient(180deg, #78a858 0%, #486830 100%);
+    border-radius: 50%;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.sprite-img {
+    width: 120px !important;
+    height: 120px !important;
+    image-rendering: pixelated !important;
+    filter: drop-shadow(2px 2px 0 rgba(0, 0, 0, 0.3));
+    transform-origin: bottom center;
+}
+
+.sprite-img:hover {
+    animation: pokemon-bounce 0.3s ease;
+}
+
+@keyframes pokemon-bounce {
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-10px);
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   BATTLE LOG (Message History)
+   ═══════════════════════════════════════════════════════════════════════ */
+
+#battle-log {
+    background: var(--panel-bg) !important;
+    border: 4px solid var(--panel-border) !important;
+    border-radius: 12px !important;
+    padding: 12px !important;
+    box-shadow:
+        inset -4px -4px 0 var(--panel-border-light),
+        inset 4px 4px 0 #ffffff,
+        6px 6px 0 var(--panel-shadow) !important;
+    max-height: 300px;
+    overflow-y: auto;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 11px;
+    line-height: 2;
+    color: var(--text-dark);
+}
+
+#battle-log::-webkit-scrollbar {
+    width: 12px;
+}
+
+#battle-log::-webkit-scrollbar-track {
+    background: #d0d0d0;
+    border-radius: 0;
+}
+
+#battle-log::-webkit-scrollbar-thumb {
+    background: #808080;
+    border: 2px solid #d0d0d0;
+}
+
+.log-entry {
+    padding: 6px 8px;
+    margin-bottom: 4px;
+    border-bottom: 2px dashed #c0c0c0;
+    text-transform: uppercase;
+}
+
+.log-attack {
+    color: var(--text-dark);
+}
+
+.log-critical {
+    color: #f08030;
+    font-weight: bold;
+}
+
+.log-effectiveness-super {
+    color: #78c850;
+}
+
+.log-effectiveness-not {
+    color: #a040a0;
+}
+
+.log-victory {
+    color: var(--pokemon-red);
+    background: #f8f8c0;
+    padding: 8px;
+    border: 2px solid #c0a000;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   TYPE BADGES (Pokemon Style)
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.type-badge {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 8px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    display: inline-block;
+    margin: 2px;
+    box-shadow:
+        inset -1px -1px 0 rgba(0, 0, 0, 0.3),
+        inset 1px 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.type-normal {
+    background: #a8a878;
+    color: #fff;
+}
+
+.type-fire {
+    background: #f08030;
+    color: #fff;
+}
+
+.type-water {
+    background: #6890f0;
+    color: #fff;
+}
+
+.type-electric {
+    background: #f8d030;
+    color: #303030;
+}
+
+.type-grass {
+    background: #78c850;
+    color: #fff;
+}
+
+.type-ice {
+    background: #98d8d8;
+    color: #303030;
+}
+
+.type-fighting {
+    background: #c03028;
+    color: #fff;
+}
+
+.type-poison {
+    background: #a040a0;
+    color: #fff;
+}
+
+.type-ground {
+    background: #e0c068;
+    color: #303030;
+}
+
+.type-flying {
+    background: #a890f0;
+    color: #fff;
+}
+
+.type-psychic {
+    background: #f85888;
+    color: #fff;
+}
+
+.type-bug {
+    background: #a8b820;
+    color: #fff;
+}
+
+.type-rock {
+    background: #b8a038;
+    color: #fff;
+}
+
+.type-ghost {
+    background: #705898;
+    color: #fff;
+}
+
+.type-dragon {
+    background: #7038f8;
+    color: #fff;
+}
+
+.type-dark {
+    background: #705848;
+    color: #fff;
+}
+
+.type-steel {
+    background: #b8b8d0;
+    color: #303030;
+}
+
+.type-fairy {
+    background: #ee99ac;
+    color: #303030;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   HEADER (Pokemon Logo Style)
+   ═══════════════════════════════════════════════════════════════════════ */
+
+#app-header {
+    text-align: center;
+    padding: 20px 0;
+    margin-bottom: 16px;
+}
+
+#app-title {
+    font-family: 'Press Start 2P', monospace !important;
+    font-size: 24px !important;
+    color: var(--pokemon-yellow) !important;
+    text-shadow:
+        3px 3px 0 #3068a8,
+        -1px -1px 0 #3068a8,
+        1px -1px 0 #3068a8,
+        -1px 1px 0 #3068a8,
+        0 4px 0 #305090 !important;
+    letter-spacing: -1px;
+    margin: 0;
+}
+
+#app-subtitle {
+    font-family: 'Press Start 2P', monospace !important;
+    font-size: 10px !important;
+    color: #f8f8f8 !important;
+    text-shadow: 1px 1px 0 #303030;
+    margin-top: 8px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   ACTION BUTTONS (Pokemon Style)
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.pokemon-btn {
+    font-family: 'Press Start 2P', monospace !important;
+    font-size: 12px !important;
+    background: linear-gradient(180deg, #f8f8f8 0%, #d0d0d0 100%) !important;
+    border: 4px solid var(--panel-border) !important;
+    border-radius: 8px !important;
+    color: var(--text-dark) !important;
+    padding: 12px 24px !important;
+    cursor: pointer !important;
+    box-shadow:
+        inset -2px -2px 0 #a0a0a0,
+        inset 2px 2px 0 #ffffff,
+        4px 4px 0 var(--panel-shadow) !important;
+    transition: all 0.1s ease !important;
+    text-transform: uppercase;
+}
+
+.pokemon-btn:hover {
+    transform: translate(2px, 2px) !important;
+    box-shadow:
+        inset -2px -2px 0 #a0a0a0,
+        inset 2px 2px 0 #ffffff,
+        2px 2px 0 var(--panel-shadow) !important;
+}
+
+.pokemon-btn:active {
+    transform: translate(4px, 4px) !important;
+    box-shadow:
+        inset -2px -2px 0 #a0a0a0,
+        inset 2px 2px 0 #ffffff,
+        0 0 0 var(--panel-shadow) !important;
+}
+
+.pokemon-btn-primary {
+    background: linear-gradient(180deg, #f85858 0%, #d03030 100%) !important;
+    color: #f8f8f8 !important;
+    border-color: #801818 !important;
+    box-shadow:
+        inset -2px -2px 0 #a02020,
+        inset 2px 2px 0 #f89090,
+        4px 4px 0 #401010 !important;
+}
+
+.pokemon-btn-primary:hover,
+.pokemon-btn-primary:active {
+    box-shadow:
+        inset -2px -2px 0 #a02020,
+        inset 2px 2px 0 #f89090,
+        2px 2px 0 #401010 !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   DROPDOWN (Pokemon Style)
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.pokemon-dropdown select,
+.pokemon-dropdown input {
+    font-family: 'Press Start 2P', monospace !important;
+    font-size: 10px !important;
+    background: var(--panel-bg) !important;
+    border: 3px solid var(--panel-border) !important;
+    border-radius: 0 !important;
+    color: var(--text-dark) !important;
+    padding: 10px 12px !important;
+    box-shadow:
+        inset -2px -2px 0 #c0c0c0,
+        inset 2px 2px 0 #ffffff !important;
+    text-transform: uppercase;
+}
+
+.pokemon-dropdown select:focus,
+.pokemon-dropdown input:focus {
+    outline: none !important;
+    border-color: var(--pokemon-blue) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   LABELS (Pokemon Style)
+   ═══════════════════════════════════════════════════════════════════════ */
+
+label {
+    font-family: 'Press Start 2P', monospace !important;
+    font-size: 10px !important;
+    color: #f8f8f8 !important;
+    text-shadow: 1px 1px 0 #303030 !important;
+    text-transform: uppercase;
+    letter-spacing: 0;
+    margin-bottom: 6px !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   WEATHER INDICATOR
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.weather-indicator {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 10px;
+    padding: 8px 16px;
+    background: var(--panel-bg);
+    border: 3px solid var(--panel-border);
+    display: inline-block;
+    box-shadow:
+        inset -2px -2px 0 #c0c0c0,
+        inset 2px 2px 0 #ffffff;
+}
+
+.weather-rain {
+    background: #98d8f8;
+    border-color: #3878a8;
+}
+
+.weather-sun {
+    background: #f8e888;
+    border-color: #c09820;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   STATS BARS (Pokemon Style)
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.stat-row {
+    display: flex;
+    align-items: center;
+    margin: 4px 0;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 8px;
+}
+
+.stat-name {
+    width: 80px;
+    color: var(--text-dark);
+    text-transform: uppercase;
+}
+
+.stat-bar-bg {
+    flex: 1;
+    height: 10px;
+    background: #484848;
+    border-radius: 2px;
+    padding: 2px;
+    box-shadow: inset 1px 1px 0 #202020;
+}
+
+.stat-bar-fill {
+    height: 100%;
+    border-radius: 1px;
+}
+
+.stat-hp {
+    background: linear-gradient(180deg, #70f880, #20d070);
+}
+
+.stat-attack {
+    background: linear-gradient(180deg, #f8a878, #f08030);
+}
+
+.stat-defense {
+    background: linear-gradient(180deg, #f8e870, #f8d030);
+}
+
+.stat-sp-atk {
+    background: linear-gradient(180deg, #98c8f8, #6890f0);
+}
+
+.stat-sp-def {
+    background: linear-gradient(180deg, #a8e0a8, #78c850);
+}
+
+.stat-speed {
+    background: linear-gradient(180deg, #f8a8b8, #f85888);
+}
+
+.stat-value {
+    width: 35px;
+    text-align: right;
+    color: var(--text-dark);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   RESPONSIVE
+   ═══════════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 768px) {
+    #app-title {
+        font-size: 16px !important;
+    }
+
+    .sprite-img {
+        width: 96px !important;
+        height: 96px !important;
+    }
+
+    .pokemon-btn {
+        font-size: 10px !important;
+        padding: 10px 16px !important;
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   POKEMON INFO CARD (Combined HP Box + Stats)
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.pokemon-card-wrapper {
+    background: linear-gradient(180deg, #e0e0e0 0%, #c8c8c8 100%);
+    border: 4px solid #404040;
+    border-radius: 12px;
+    padding: 12px;
+    box-shadow:
+        inset -3px -3px 0 #909090,
+        inset 3px 3px 0 #f8f8f8,
+        5px 5px 0 #303030;
+}
+
+.pokemon-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #a0a0a0;
+}
+
+.pokemon-card-name {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 14px;
+    color: #303030;
+    text-transform: uppercase;
+}
+
+.pokemon-card-level {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 10px;
+    color: #505050;
+}
