@@ -271,9 +271,10 @@ async def calculate_damage_enhanced(
     category = move.get('category', 'physical')
     
     # Physical vs Special split with stat stages
+    # Use calculated stats (not raw base_stat) for proper damage at level 50
     if category == 'physical':
-        base_attack = attacker['stats'][1]['base_stat']   # Attack
-        base_defense = defender['stats'][2]['base_stat']  # Defense
+        base_attack = calculate_stat(attacker['stats'][1]['base_stat'])   # Attack
+        base_defense = calculate_stat(defender['stats'][2]['base_stat'])  # Defense
         # Apply stat stage multipliers (ignore if critical hit)
         if critical:
             # Critical ignores negative atk stages and positive def stages
@@ -285,8 +286,8 @@ async def calculate_damage_enhanced(
         attack = base_attack * atk_mult
         defense = base_defense * def_mult
     else:  # special
-        base_attack = attacker['stats'][3]['base_stat']   # Sp. Atk
-        base_defense = defender['stats'][4]['base_stat']  # Sp. Def
+        base_attack = calculate_stat(attacker['stats'][3]['base_stat'])   # Sp. Atk
+        base_defense = calculate_stat(defender['stats'][4]['base_stat'])  # Sp. Def
         if critical:
             atk_mult = max(1.0, get_stat_multiplier(attacker_stat_stages.get('spa', 0)))
             def_mult = min(1.0, get_stat_multiplier(defender_stat_stages.get('spd', 0)))
