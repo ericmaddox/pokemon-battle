@@ -934,17 +934,19 @@ def format_battle_log(events: list[dict], turn_number: int = 0, player_name: str
         style = styles.get(event_type, "color: #303030;")
         html += f'<div style="font-family: \'Press Start 2P\', monospace; font-size: 11px; padding: 2px 0; line-height: 1.8; {style}">{message}</div>'
     
-    # Add animation script block
-    anim_script = ""
+    # Add animation triggers using img onerror trick (script tags don't execute in Gradio HTML)
+    anim_html = ""
     if animation_scripts:
-        anim_script = f"<script>{' '.join(animation_scripts)}</script>"
+        # Use an invalid src to trigger onerror which DOES execute JavaScript
+        js_code = ' '.join(animation_scripts)
+        anim_html = f'<img src="x" onerror="{js_code}" style="display:none">'
     
     # Wrap in scrollable container
     return f"""<div style="background: #f8f8f8; border: 4px solid #404040; border-radius: 12px; padding: 16px;
         box-shadow: inset -3px -3px 0 #c0c0c0, inset 3px 3px 0 #ffffff, 5px 5px 0 #303030;
         max-height: 350px; overflow-y: auto;">
         {html}
-    </div>{anim_script}"""
+    </div>{anim_html}"""
 
 # ══════════════════════════════════════════════════════════════════════════════
 # GRADIO APP
