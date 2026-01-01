@@ -119,6 +119,8 @@ pip install -r requirements.txt
 6. Watch the turn play out with animations!
 7. Repeat until one Pokemon faints!
 
+![Gameplay Screenshot](https://github.com/ericmaddox/pokemon-battle/blob/main/media/screenshot_1.png)
+
 ---
 
 ## Battle Mechanics
