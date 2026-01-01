@@ -956,6 +956,102 @@ custom_css = ""
 if css_path.exists():
     custom_css = css_path.read_text()
 
+# JavaScript for battle animations (must be in head to execute properly)
+custom_head = """
+<script>
+    // Pokemon cry playback functions
+    window.playPokemonCry = function(audioId, cryUrl) {
+        const audio = document.getElementById(audioId);
+        if (audio && cryUrl) {
+            audio.src = cryUrl;
+            audio.volume = 0.3;
+            audio.play().catch(e => console.log('Audio play failed:', e));
+        }
+    };
+    
+    window.playCrySequence = function(cry1Url, cry2Url) {
+        if (cry1Url) {
+            const audio1 = document.getElementById('player-cry');
+            if (audio1) {
+                audio1.src = cry1Url;
+                audio1.volume = 0.3;
+                audio1.play().catch(e => {});
+                
+                if (cry2Url) {
+                    audio1.onended = function() {
+                        setTimeout(() => {
+                            const audio2 = document.getElementById('opponent-cry');
+                            if (audio2) {
+                                audio2.src = cry2Url;
+                                audio2.volume = 0.3;
+                                audio2.play().catch(e => {});
+                            }
+                        }, 200);
+                    };
+                }
+            }
+        }
+    };
+    
+    // Battle Animation Functions
+    window.triggerAttackAnimation = function(attackerSide, moveType) {
+        const sprites = document.querySelectorAll('img[style*="image-rendering: pixelated"]');
+        const targetIdx = attackerSide === 'player' ? 0 : 1;
+        const sprite = sprites[targetIdx];
+        
+        if (sprite) {
+            const direction = attackerSide === 'player' ? 'right' : 'left';
+            sprite.classList.add('pokemon-attack-' + direction);
+            sprite.classList.add('effect-' + (moveType || 'normal'));
+            setTimeout(() => {
+                sprite.classList.remove('pokemon-attack-' + direction);
+                sprite.classList.remove('effect-' + (moveType || 'normal'));
+            }, 500);
+        }
+    };
+    
+    window.triggerHitAnimation = function(defenderSide, isCritical) {
+        const sprites = document.querySelectorAll('img[style*="image-rendering: pixelated"]');
+        const targetIdx = defenderSide === 'opponent' ? 1 : 0;
+        const sprite = sprites[targetIdx];
+        
+        if (sprite) {
+            const animClass = isCritical ? 'pokemon-critical' : 'pokemon-hit';
+            sprite.classList.add(animClass);
+            setTimeout(() => sprite.classList.remove(animClass), 600);
+        }
+    };
+    
+    window.triggerFaintAnimation = function(side) {
+        const sprites = document.querySelectorAll('img[style*="image-rendering: pixelated"]');
+        const targetIdx = side === 'opponent' ? 1 : 0;
+        const sprite = sprites[targetIdx];
+        
+        if (sprite) {
+            sprite.classList.add('pokemon-faint');
+        }
+    };
+    
+    window.triggerVictoryAnimation = function(winnerSide) {
+        const sprites = document.querySelectorAll('img[style*="image-rendering: pixelated"]');
+        const targetIdx = winnerSide === 'player' ? 0 : 1;
+        const sprite = sprites[targetIdx];
+        
+        if (sprite) {
+            sprite.classList.add('pokemon-victory');
+        }
+    };
+    
+    window.triggerScreenShake = function() {
+        const container = document.querySelector('.gradio-container');
+        if (container) {
+            container.classList.add('screen-shake');
+            setTimeout(() => container.classList.remove('screen-shake'), 500);
+        }
+    };
+</script>
+"""
+
 with gr.Blocks(
     title="Pokemon Battle Simulator",
 ) as app:
@@ -1004,95 +1100,6 @@ with gr.Blocks(
             <!-- Hidden audio elements for Pokemon cries -->
             <audio id="player-cry" preload="none" style="display:none;"></audio>
             <audio id="opponent-cry" preload="none" style="display:none;"></audio>
-            
-            <script>
-                // Pokemon cry playback functions
-                window.playPokemonCry = function(audioId, cryUrl) {
-                    const audio = document.getElementById(audioId);
-                    if (audio && cryUrl) {
-                        audio.src = cryUrl;
-                        audio.volume = 0.3;  // 30% volume for game-like feel
-                        audio.play().catch(e => console.log('Audio play failed:', e));
-                    }
-                };
-                
-                window.playCrySequence = function(cry1Url, cry2Url) {
-                    // Play player cry, then opponent cry after delay
-                    if (cry1Url) {
-                        const audio1 = document.getElementById('player-cry');
-                        audio1.src = cry1Url;
-                        audio1.volume = 0.3;
-                        audio1.play().catch(e => {});
-                        
-                        if (cry2Url) {
-                            audio1.onended = function() {
-                                setTimeout(() => {
-                                    const audio2 = document.getElementById('opponent-cry');
-                                    audio2.src = cry2Url;
-                                    audio2.volume = 0.3;
-                                    audio2.play().catch(e => {});
-                                }, 200);
-                            };
-                        }
-                    }
-                };
-                
-                // Battle Animation Functions
-                window.triggerAttackAnimation = function(attackerSide, moveType) {
-                    // attackerSide: 'player' or 'opponent'
-                    const attackerSprite = document.querySelector(`#${attackerSide}-info img, .${attackerSide}-sprite`);
-                    if (attackerSprite) {
-                        const direction = attackerSide === 'player' ? 'right' : 'left';
-                        attackerSprite.classList.add(`pokemon-attack-${direction}`);
-                        attackerSprite.classList.add(`effect-${moveType || 'normal'}`);
-                        setTimeout(() => {
-                            attackerSprite.classList.remove(`pokemon-attack-${direction}`);
-                            attackerSprite.classList.remove(`effect-${moveType || 'normal'}`);
-                        }, 500);
-                    }
-                };
-                
-                window.triggerHitAnimation = function(defenderSide, isCritical) {
-                    // Find sprites by looking for images in the info panels
-                    const sprites = document.querySelectorAll('img[style*="image-rendering: pixelated"]');
-                    const targetIdx = defenderSide === 'opponent' ? 1 : 0;
-                    const sprite = sprites[targetIdx];
-                    
-                    if (sprite) {
-                        const animClass = isCritical ? 'pokemon-critical' : 'pokemon-hit';
-                        sprite.classList.add(animClass);
-                        setTimeout(() => sprite.classList.remove(animClass), 600);
-                    }
-                };
-                
-                window.triggerFaintAnimation = function(side) {
-                    const sprites = document.querySelectorAll('img[style*="image-rendering: pixelated"]');
-                    const targetIdx = side === 'opponent' ? 1 : 0;
-                    const sprite = sprites[targetIdx];
-                    
-                    if (sprite) {
-                        sprite.classList.add('pokemon-faint');
-                    }
-                };
-                
-                window.triggerVictoryAnimation = function(winnerSide) {
-                    const sprites = document.querySelectorAll('img[style*="image-rendering: pixelated"]');
-                    const targetIdx = winnerSide === 'opponent' ? 1 : 0;
-                    const sprite = sprites[targetIdx];
-                    
-                    if (sprite) {
-                        sprite.classList.add('pokemon-victory');
-                    }
-                };
-                
-                window.triggerScreenShake = function() {
-                    const container = document.querySelector('.gradio-container');
-                    if (container) {
-                        container.classList.add('screen-shake');
-                        setTimeout(() => container.classList.remove('screen-shake'), 500);
-                    }
-                };
-            </script>
         """)
     
     # ══════════════════════════════════════════════════════════════════════════
@@ -1579,7 +1586,8 @@ if __name__ == "__main__":
                 secondary_hue=gr.themes.colors.pink,
                 neutral_hue=gr.themes.colors.slate,
             ),
-            css=custom_css
+            css=custom_css,
+            head=custom_head
         )
     except KeyboardInterrupt:
         print("\n\n  ⚡ Server stopped. Goodbye! ⚡\n")
