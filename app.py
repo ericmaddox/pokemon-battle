@@ -978,7 +978,7 @@ def create_pokemon_info_html(pokemon_data: dict | None, is_player: bool = True) 
 
 def create_hp_bar_html(name: str, hp_percent: int, is_player: bool, level: int = 50, animate_damage: bool = False) -> str:
     """Create a Pokemon-style HP bar with animations."""
-    hp_percent = max(0, min(100, hp_percent))  # Clamp to 0-100
+    hp_percent = max(0, min(100, hp_percent))
     
     if hp_percent > 50:
         bar_color = "linear-gradient(180deg, #70f880 0%, #20d070 50%, #18a050 100%)"
@@ -988,46 +988,30 @@ def create_hp_bar_html(name: str, hp_percent: int, is_player: bool, level: int =
         bar_class = "hp-bar-yellow hp-bar-animated"
     else:
         bar_color = "linear-gradient(180deg, #f88070 0%, #f85030 50%, #c03020 100%)"
-        bar_class = "hp-bar-red hp-bar-animated hp-bar-critical"  # Pulse when critical
+        bar_class = "hp-bar-red hp-bar-animated hp-bar-critical"
     
-    # Add damage flash animation class if just took damage
     damage_class = "hp-damage" if animate_damage else ""
     side_id = "player" if is_player else "opponent"
     
+    # Dark mode styling with white text
     return f"""
-    <div id="{side_id}-hp-container" style="background: linear-gradient(180deg, #f0f0f0 0%, #d8d8d8 100%); border: 3px solid #404040;
+    <div id="{side_id}-hp-container" style="background: rgba(30, 30, 30, 0.8); border: 2px solid #505050;
         border-radius: 8px; padding: 8px 12px; margin: 4px 0;
-        box-shadow: inset -2px -2px 0 #a0a0a0, inset 2px 2px 0 #ffffff, 4px 4px 0 #303030;">
+        box-shadow: 4px 4px 0 rgba(0,0,0,0.5);">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-            <span style="font-family: 'Press Start 2P', monospace; font-size: 11px; color: #303030;">{name.upper()}</span>
-            <span style="font-family: 'Press Start 2P', monospace; font-size: 9px; color: #505050;">Lv{level}</span>
+            <span style="font-family: 'Press Start 2P', monospace; font-size: 11px; color: #f8f8f8; text-shadow: 2px 2px 0 #000;">{name.upper()}</span>
+            <span style="font-family: 'Press Start 2P', monospace; font-size: 9px; color: #d0d0d0; text-shadow: 1px 1px 0 #000;">Lv{level}</span>
         </div>
         <div style="display: flex; align-items: center;">
-            <span style="font-family: 'Press Start 2P', monospace; font-size: 8px; color: #f08030; margin-right: 6px;">HP</span>
-            <div class="{damage_class}" style="flex: 1; height: 8px; background: #484848; border-radius: 4px; padding: 2px; box-shadow: inset 1px 1px 0 #202020;">
+            <span style="font-family: 'Press Start 2P', monospace; font-size: 8px; color: #f08030; margin-right: 6px; text-shadow: 1px 1px 0 #000;">HP</span>
+            <div class="{damage_class}" style="flex: 1; height: 10px; background: #101010; border-radius: 4px; padding: 2px; box-shadow: inset 1px 1px 0 #000;">
                 <div id="{side_id}-hp-bar" class="{bar_class}" style="width: {hp_percent}%; height: 100%; background: {bar_color}; border-radius: 2px; transition: width 0.8s ease-out;"></div>
             </div>
-    """
-    
-def create_hp_bar_html(name: str, percentage: int, is_player: bool, level: int = 50, animate_damage: bool = False) -> str:
-    """Create HTML HP bar with 3D styling"""
-    color = "green"
-    if percentage < 50: color = "yellow"
-    if percentage < 20: color = "red"
-    
-    fill_class = f"hp-fill {color}" if color != "green" else "hp-fill"
-    
-    return f"""
-    <div style="margin-bottom: 8px;">
-        <div style="display: flex; justify-content: space-between; margin-bottom: 2px;">
-            <span style="font-family: 'Press Start 2P'; font-size: 10px; color: #303030;">{name}</span>
-            <span style="font-family: 'Press Start 2P'; font-size: 10px; color: #303030;">Lv{level}</span>
-        </div>
-        <div class="hp-bar-container">
-            <div class="{fill_class}" style="width: {percentage}%"></div>
         </div>
     </div>
     """
+    
+
 
 def format_battle_log(event_list, turn=None, active_pokemon=None):
     """Format battle log events into HTML with retro styling."""
