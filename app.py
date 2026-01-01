@@ -185,18 +185,26 @@ async def get_pokemon_moves(pokemon_data: dict, limit: int = 4) -> list[dict]:
                     'change': sc['change']
                 })
             
+            # Extract multi-hit info
+            min_hits = meta.get('min_hits') if meta else None
+            max_hits = meta.get('max_hits') if meta else None
+            
+            pp_value = move_data.get('pp', 10)
             damaging_moves.append({
                 'name': move_data['name'].replace('-', ' ').title(),
                 'power': move_data.get('power', 50),
                 'accuracy': move_data.get('accuracy', 100) or 100,
                 'type': move_data['type']['name'],
                 'category': move_data.get('damage_class', {}).get('name', 'physical'),
-                'pp': move_data.get('pp', 10),
-                'priority': move_data.get('priority', 0),  # NEW: Move priority
-                'ailment': ailment,  # NEW: Status effect (burn, poison, etc.)
-                'ailment_chance': ailment_chance,  # NEW: % chance to inflict
-                'stat_changes': stat_changes,  # NEW: Stat modifications
-                'flinch_chance': meta.get('flinch_chance', 0) if meta else 0,  # NEW
+                'max_pp': pp_value,  # Maximum PP
+                'current_pp': pp_value,  # Current PP (starts at max)
+                'priority': move_data.get('priority', 0),
+                'ailment': ailment,
+                'ailment_chance': ailment_chance,
+                'stat_changes': stat_changes,
+                'flinch_chance': meta.get('flinch_chance', 0) if meta else 0,
+                'min_hits': min_hits,  # For multi-hit moves
+                'max_hits': max_hits,  # For multi-hit moves
             })
     
     # Sort by power (strongest first)
@@ -210,12 +218,15 @@ async def get_pokemon_moves(pokemon_data: dict, limit: int = 4) -> list[dict]:
             'accuracy': 100,
             'type': 'normal',
             'category': 'physical',
-            'pp': 999,
+            'max_pp': 999,
+            'current_pp': 999,
             'priority': 0,
             'ailment': None,
             'ailment_chance': 0,
             'stat_changes': [],
             'flinch_chance': 0,
+            'min_hits': None,
+            'max_hits': None,
         })
     
     return damaging_moves[:4]
@@ -432,6 +443,25 @@ async def execute_turn(
         attacker_stat_stages, defender_stat_stages, attacker_status
     )
     
+    # Multi-hit move support (Fury Attack, Double Slap, etc.)
+    min_hits = move.get('min_hits')
+    max_hits = move.get('max_hits')
+    num_hits = 1
+    if min_hits and max_hits:
+        # Gen V+ distribution: 2 hits (35%), 3 hits (35%), 4 hits (15%), 5 hits (15%)
+        hit_roll = random.random()
+        if hit_roll < 0.35:
+            num_hits = 2
+        elif hit_roll < 0.70:
+            num_hits = 3
+        elif hit_roll < 0.85:
+            num_hits = 4
+        else:
+            num_hits = 5
+        # Clamp to min/max
+        num_hits = max(min_hits, min(max_hits, num_hits))
+        damage = damage * num_hits  # Total damage for all hits
+    
     # Attack message with animation metadata
     move_type = move.get('type', 'normal')
     events.append({
@@ -465,9 +495,10 @@ async def execute_turn(
     
     # Damage message with animation metadata
     category_label = "physical" if move.get('category') == 'physical' else "special"
+    hit_info = f" ({num_hits} hits)" if num_hits > 1 else ""
     events.append({
         "type": "damage",
-        "message": f"   {damage} damage ({category_label})!",
+        "message": f"   {damage} total damage ({category_label}){hit_info}!",
         "defender": "opponent",  # Will be set properly in run_battle_turn
         "critical": critical
     })
@@ -1319,10 +1350,11 @@ with gr.Blocks(
         player_cry = player_data.get('cries', {}).get('latest', '')
         opponent_cry = opponent_data.get('cries', {}).get('latest', '')
         
-        # Create move button labels with type info
+        # Create move button labels with type and PP info
         move_labels = []
         for m in player_moves:
-            label = f"{m['name']} ({m['type'].upper()})"
+            pp_display = f"{m['current_pp']}/{m['max_pp']}" if m['max_pp'] < 100 else ""
+            label = f"{m['name']} ({m['type'].upper()}) {pp_display}".strip()
             move_labels.append(label)
         
         # Initialize battle log with level and matchup info
@@ -1410,7 +1442,8 @@ with gr.Blocks(
                 create_hp_bar_html("???", 100, is_player=True),
                 create_hp_bar_html("???", 100, is_player=False),
                 gr.update(visible=False),
-                player_hp, opponent_hp, prev_events, battle_active, turn_counter,
+                gr.update(), gr.update(), gr.update(), gr.update(),  # Move buttons unchanged
+                player_hp, opponent_hp, prev_events, battle_active, turn_counter, player_moves,
                 p_status, o_status, p_stat_stages, o_stat_stages, p_sleep, o_sleep
             )
         
@@ -1418,6 +1451,24 @@ with gr.Blocks(
         new_turn = turn_counter + 1
         
         selected_move = player_moves[move_index]
+        
+        # Check if move has PP remaining
+        if selected_move.get('current_pp', 1) <= 0:
+            # No PP remaining, can't use this move
+            no_pp_event = {"type": "info", "message": f"{selected_move['name']} has no PP left!"}
+            return (
+                format_battle_log(prev_events + [no_pp_event], new_turn, player_data['name'].capitalize()),
+                create_hp_bar_html(player_data['name'].capitalize(), int(player_hp / max_p_hp * 100), is_player=True),
+                create_hp_bar_html(opponent_data['name'].capitalize(), int(opponent_hp / max_o_hp * 100), is_player=False),
+                gr.update(visible=True),
+                gr.update(), gr.update(), gr.update(), gr.update(),
+                player_hp, opponent_hp, prev_events, battle_active, turn_counter - 1, player_moves,
+                p_status, o_status, p_stat_stages, o_stat_stages, p_sleep, o_sleep
+            )
+        
+        # Decrement PP for the used move
+        player_moves[move_index]['current_pp'] = max(0, selected_move.get('current_pp', 1) - 1)
+        
         player_name = player_data['name'].capitalize()
         
         # Initialize stat stages if needed
@@ -1440,6 +1491,13 @@ with gr.Blocks(
         
         opponent_name = opponent_data['name'].capitalize()
         
+        # Generate updated move button labels with new PP
+        def get_move_label(m):
+            pp_display = f"{m['current_pp']}/{m['max_pp']}" if m['max_pp'] < 100 else ""
+            return f"{m['name']} ({m['type'].upper()}) {pp_display}".strip()
+        
+        move_btn_updates = [gr.update(value=get_move_label(m), interactive=(m['current_pp'] > 0)) for m in player_moves]
+        
         # Check if battle ended
         if winner:
             return (
@@ -1447,7 +1505,8 @@ with gr.Blocks(
                 create_hp_bar_html(player_name, max(0, int(new_p_hp / max_p_hp * 100)), is_player=True),
                 create_hp_bar_html(opponent_name, max(0, int(new_o_hp / max_o_hp * 100)), is_player=False),
                 gr.update(visible=False),  # Hide move selection
-                new_p_hp, new_o_hp, all_events, False, new_turn,
+                *move_btn_updates,
+                new_p_hp, new_o_hp, all_events, False, new_turn, player_moves,
                 new_p_status, new_o_status, new_p_stages, new_o_stages, new_p_sleep, new_o_sleep
             )
         
@@ -1456,7 +1515,8 @@ with gr.Blocks(
             create_hp_bar_html(player_name, max(0, int(new_p_hp / max_p_hp * 100)), is_player=True),
             create_hp_bar_html(opponent_name, max(0, int(new_o_hp / max_o_hp * 100)), is_player=False),
             gr.update(visible=True),  # Keep move selection visible
-            new_p_hp, new_o_hp, all_events, battle_active, new_turn,
+            *move_btn_updates,
+            new_p_hp, new_o_hp, all_events, battle_active, new_turn, player_moves,
             new_p_status, new_o_status, new_p_stages, new_o_stages, new_p_sleep, new_o_sleep
         )
     
@@ -1539,7 +1599,8 @@ with gr.Blocks(
     ]
     move_outputs = [
         battle_log, player_hp_bar, opponent_hp_bar, move_selection_area,
-        player_hp_state, opponent_hp_state, battle_events_state, battle_active_state, turn_counter_state,
+        move_btn_1, move_btn_2, move_btn_3, move_btn_4,  # Button updates for PP display
+        player_hp_state, opponent_hp_state, battle_events_state, battle_active_state, turn_counter_state, player_moves_state,
         player_status_state, opponent_status_state,
         player_stat_stages_state, opponent_stat_stages_state,
         player_sleep_turns_state, opponent_sleep_turns_state
