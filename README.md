@@ -1,24 +1,26 @@
 # Pokemon Battle Simulator
 
-![License](https://img.shields.io/github/license/ericmaddox/pokemon-battle.svg)
-![Issues](https://img.shields.io/github/issues/ericmaddox/pokemon-battle.svg)
-![Stars](https://img.shields.io/github/stars/ericmaddox/pokemon-battle.svg)
+![Python](https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white)
+![Gradio](https://img.shields.io/badge/Gradio-5.0+-FF7C00?logo=gradio&logoColor=white)
+![License](https://img.shields.io/github/license/ericmaddox/pokemon-battle)
+![Stars](https://img.shields.io/github/stars/ericmaddox/pokemon-battle)
+![Issues](https://img.shields.io/github/issues/ericmaddox/pokemon-battle)
+![Last Commit](https://img.shields.io/github/last-commit/ericmaddox/pokemon-battle)
+[![PWA Ready](https://img.shields.io/badge/PWA-Ready-5A0FC8?logo=pwa)](http://localhost:7860)
 
 <div align="center">
 
-# ⚡ Pokémon Battle Simulator ⚡
+# Pokemon Battle Simulator
 
 ![Charizard GIF](https://github.com/ericmaddox/pokemon-battle/blob/main/media/charizard.gif)
 
 **A turn-based Pokemon battle simulator with authentic Nintendo-style UI and official game mechanics**
 
-[![PWA Ready](https://img.shields.io/badge/PWA-Ready-5A0FC8?logo=pwa)](http://localhost:7860)
-
 </div>
 
 ---
 
-## 🎮 Features
+## Features
 
 ### Battle Mechanics
 - **Official Pokemon Formulas** - HP and stats calculated using Gen 3+ formulas
@@ -29,19 +31,19 @@
 - **Speed-Based Turn Order** - Faster Pokemon attacks first
 - **Move Priority** - Quick Attack, etc. go first regardless of speed
 
-### Status Conditions ✅
+### Status Conditions
 - **Burn** - 1/16 HP damage per turn, halves physical attack
 - **Poison** - 1/8 HP damage per turn
 - **Paralysis** - 25% chance to skip turn, 50% speed reduction
 - **Sleep** - Can't move for 1-3 turns
 - **Freeze** - Can't move, 20% thaw chance per turn
 
-### Stat Stages ✅
+### Stat Stages
 - **-6 to +6 stages** for Attack, Defense, Sp.Atk, Sp.Def, Speed
 - **Accuracy/Evasion stages** affect hit chance
 - Moves like Swords Dance, Growl affect stats
 
-### Battle Animations 🎬
+### Battle Animations
 - **Sprite shake** when hit
 - **Flash effects** on damage
 - **Critical hit screen shake**
@@ -50,7 +52,7 @@
 - **Type-based VFX** - Fire glows orange, Electric flickers, etc.
 
 ### Audio
-- **Pokemon Cries** - Click 🔊 button on any Pokemon card
+- **Pokemon Cries** - Click the speaker button on any Pokemon card
 - Authentic cries from PokeAPI
 
 ### Weather Effects
@@ -64,15 +66,15 @@
 - **Animated HP bars** with color transitions
 - **Progressive Web App (PWA)** - Install as desktop/mobile app
 
-### Level Scaling ⚖️ (NEW!)
+### Level Scaling
 - **Automatic balance** for mismatched battles
 - Weaker Pokemon get higher levels, stronger get lower
-- Shows **matchup tier**: 🟢 Fair / 🟡 Advantage / 🔴 Mismatched
+- Shows **matchup tier** indicator before battle
 - Example: Pikachu (Lv61) vs Snorlax (Lv39) = fair fight!
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ```bash
 # Clone the repo
@@ -94,7 +96,7 @@ Opens automatically at **http://localhost:7860**
 
 ---
 
-## 📦 Requirements
+## Requirements
 
 - Python 3.10+
 - gradio
@@ -107,11 +109,11 @@ pip install -r requirements.txt
 
 ---
 
-## 🎯 How to Play
+## How to Play
 
 1. **Select your Pokemon** from the dropdown (all 151 Gen 1 Pokemon!)
 2. **Click RANDOM** for an opponent (or select one)
-3. **Click 🔊** to hear their cries
+3. **Click the speaker button** to hear their cries
 4. **Click START BATTLE!**
 5. **Choose a move** from the 4 buttons
 6. Watch the turn play out with animations!
@@ -119,7 +121,7 @@ pip install -r requirements.txt
 
 ---
 
-## 🔧 Battle Mechanics
+## Battle Mechanics
 
 | Feature | Description |
 |---------|-------------|
@@ -133,7 +135,7 @@ pip install -r requirements.txt
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 pokemon-battle/
@@ -146,9 +148,9 @@ pokemon-battle/
 
 ---
 
-## 🗺️ Roadmap
+## Roadmap
 
-### Completed ✅
+### Completed
 - [x] Status effects (Burn, Poison, Paralysis, Sleep, Freeze)
 - [x] Stat stages (+6/-6)
 - [x] Move priority
@@ -168,23 +170,23 @@ pokemon-battle/
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 Contributions welcome! Open an issue or submit a PR.
 
 ---
 
-## 📜 License
+## License
 
 MIT License - see [LICENSE](LICENSE)
 
 ---
 
-## 🙏 Acknowledgements
+## Acknowledgements
 
-- [PokéAPI](https://pokeapi.co/) for Pokemon data and cries
+- [PokeAPI](https://pokeapi.co/) for Pokemon data and cries
 - [Gradio](https://gradio.app/) for the GUI framework
-- [The Pokémon Company](https://www.pokemon.com/) for the franchise
+- [The Pokemon Company](https://www.pokemon.com/) for the franchise
 
 ---
 
