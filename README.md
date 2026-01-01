@@ -64,6 +64,12 @@
 - **Animated HP bars** with color transitions
 - **Progressive Web App (PWA)** - Install as desktop/mobile app
 
+### Level Scaling ⚖️ (NEW!)
+- **Automatic balance** for mismatched battles
+- Weaker Pokemon get higher levels, stronger get lower
+- Shows **matchup tier**: 🟢 Fair / 🟡 Advantage / 🔴 Mismatched
+- Example: Pikachu (Lv61) vs Snorlax (Lv39) = fair fight!
+
 ---
 
 ## 🚀 Quick Start
@@ -150,6 +156,7 @@ pokemon-battle/
 - [x] Battle animations
 - [x] Pokemon cries
 - [x] PWA support
+- [x] Level scaling for balanced battles
 
 ### Planned
 - [ ] Abilities (Intimidate, Levitate, etc.)
