@@ -10,7 +10,9 @@
 
 ![Charizard GIF](https://github.com/ericmaddox/pokemon-battle/blob/main/media/charizard.gif)
 
-**A turn-based Pokemon battle simulator with authentic Nintendo-style UI**
+**A turn-based Pokemon battle simulator with authentic Nintendo-style UI and official game mechanics**
+
+[![PWA Ready](https://img.shields.io/badge/PWA-Ready-5A0FC8?logo=pwa)](http://localhost:7860)
 
 </div>
 
@@ -18,27 +20,54 @@
 
 ## 🎮 Features
 
-### GUI Mode (NEW!)
-- **Nintendo-style UI** with Press Start 2P font
-- **Turn-based battles** - Choose from 4 moves each turn
-- **Speed-based turn order** - Faster Pokemon attacks first
-- **STAB bonus** - 1.5x damage for same-type moves
-- **Physical/Special split** - Uses correct stats for damage
-- **Live sprites** from PokeAPI
-- **Weather effects** - Rain, Sun, or None
-- **Type effectiveness** - Super effective/not very effective
-- **Critical hits** with 1/16 chance
+### Battle Mechanics
+- **Official Pokemon Formulas** - HP and stats calculated using Gen 3+ formulas
+- **Physical/Special Split** - Uses correct Attack/Defense or Sp.Atk/Sp.Def
+- **STAB Bonus** - 1.5x damage for same-type moves
+- **Type Effectiveness** - Full type chart from PokeAPI
+- **Critical Hits** - 1/16 chance for 1.5x damage (ignores stat drops)
+- **Speed-Based Turn Order** - Faster Pokemon attacks first
+- **Move Priority** - Quick Attack, etc. go first regardless of speed
 
-### CLI Mode
-- Classic terminal-based battles
-- Leveling and evolution system
-- Async API requests for speed
+### Status Conditions ✅
+- **Burn** - 1/16 HP damage per turn, halves physical attack
+- **Poison** - 1/8 HP damage per turn
+- **Paralysis** - 25% chance to skip turn, 50% speed reduction
+- **Sleep** - Can't move for 1-3 turns
+- **Freeze** - Can't move, 20% thaw chance per turn
+
+### Stat Stages ✅
+- **-6 to +6 stages** for Attack, Defense, Sp.Atk, Sp.Def, Speed
+- **Accuracy/Evasion stages** affect hit chance
+- Moves like Swords Dance, Growl affect stats
+
+### Battle Animations 🎬
+- **Sprite shake** when hit
+- **Flash effects** on damage
+- **Critical hit screen shake**
+- **Faint animation** when defeated
+- **Victory bounce** for the winner
+- **Type-based VFX** - Fire glows orange, Electric flickers, etc.
+
+### Audio
+- **Pokemon Cries** - Click 🔊 button on any Pokemon card
+- Authentic cries from PokeAPI
+
+### Weather Effects
+- **Rain** - Boosts Water moves, weakens Fire
+- **Sun** - Boosts Fire moves, weakens Water
+- **None** - Normal battle conditions
+
+### UI/UX
+- **Nintendo-style UI** with Press Start 2P font
+- **Live sprites** from PokeAPI (front/back views)
+- **Animated HP bars** with color transitions
+- **Progressive Web App (PWA)** - Install as desktop/mobile app
 
 ---
 
 ## 🚀 Quick Start
 
-### GUI Mode (Recommended)
 ```bash
 # Clone the repo
 git clone https://github.com/ericmaddox/pokemon-battle.git
@@ -54,22 +83,16 @@ pip install -r requirements.txt
 # Run the GUI
 python app.py
 ```
-Opens automatically at **http://localhost:7860**
 
-### CLI Mode
-```bash
-python pokemon_battle.py
-```
+Opens automatically at **http://localhost:7860**
 
 ---
 
 ## 📦 Requirements
 
-- Python 3.x
+- Python 3.10+
 - gradio
 - httpx
-- aiohttp
-- Pillow
 
 Install with:
 ```bash
@@ -78,14 +101,15 @@ pip install -r requirements.txt
 
 ---
 
-## 🎯 How to Play (GUI)
+## 🎯 How to Play
 
-1. **Select your Pokemon** from the dropdown
+1. **Select your Pokemon** from the dropdown (all 151 Gen 1 Pokemon!)
 2. **Click RANDOM** for an opponent (or select one)
-3. **Click START BATTLE!**
-4. **Choose a move** from the 4 buttons
-5. Watch the turn play out based on speed
-6. Repeat until one Pokemon faints!
+3. **Click 🔊** to hear their cries
+4. **Click START BATTLE!**
+5. **Choose a move** from the 4 buttons
+6. Watch the turn play out with animations!
+7. Repeat until one Pokemon faints!
 
 ---
 
@@ -93,12 +117,13 @@ pip install -r requirements.txt
 
 | Feature | Description |
 |---------|-------------|
-| **Speed** | Higher SPD attacks first |
+| **HP Formula** | `((2*Base + IV + EV/4) * Lv)/100 + Lv + 10` |
+| **Stat Formula** | `((2*Base + IV + EV/4) * Lv)/100 + 5` |
+| **Damage Formula** | `((2*Lv/5+2) * Power * Atk/Def / 50 + 2) * modifiers` |
+| **Speed** | Higher SPD attacks first (unless priority moves) |
 | **STAB** | 1.5x damage if move type matches Pokemon type |
-| **Physical** | Uses Attack vs Defense |
-| **Special** | Uses Sp.Atk vs Sp.Def |
 | **Critical** | 1/16 chance for 1.5x damage |
-| **Weather** | Rain boosts Water, Sun boosts Fire |
+| **Weather** | Rain boosts Water 1.5x, Sun boosts Fire 1.5x |
 
 ---
 
@@ -108,7 +133,7 @@ pip install -r requirements.txt
 pokemon-battle/
 ├── app.py              # Gradio GUI application
 ├── pokemon_battle.py   # CLI version
-├── theme.css           # Nintendo-style CSS
+├── theme.css           # Nintendo-style CSS + animations
 ├── requirements.txt    # Dependencies
 └── README.md
 ```
@@ -117,11 +142,21 @@ pokemon-battle/
 
 ## 🗺️ Roadmap
 
-- [ ] Status effects (Burn, Poison, Paralysis)
-- [ ] Stat stages (+6/-6 from moves like Swords Dance)
-- [ ] Team battles with Pokemon switching
+### Completed ✅
+- [x] Status effects (Burn, Poison, Paralysis, Sleep, Freeze)
+- [x] Stat stages (+6/-6)
+- [x] Move priority
+- [x] Official HP/stat formulas
+- [x] Battle animations
+- [x] Pokemon cries
+- [x] PWA support
+
+### Planned
 - [ ] Abilities (Intimidate, Levitate, etc.)
 - [ ] Held items
+- [ ] Multi-hit moves (Fury Attack, etc.)
+- [ ] Healing moves (Recover, etc.)
+- [ ] Team battles with switching
 - [ ] Multiplayer mode
 
 ---
@@ -140,7 +175,7 @@ MIT License - see [LICENSE](LICENSE)
 
 ## 🙏 Acknowledgements
 
-- [PokéAPI](https://pokeapi.co/) for Pokemon data
+- [PokéAPI](https://pokeapi.co/) for Pokemon data and cries
 - [Gradio](https://gradio.app/) for the GUI framework
 - [The Pokémon Company](https://www.pokemon.com/) for the franchise
 
