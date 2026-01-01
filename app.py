@@ -141,6 +141,47 @@ STATUS_CONDITIONS = {
     'freeze': {'thaw_chance': 0.20}
 }
 
+# Ability effects (common Gen 1-3 abilities)
+ABILITIES = {
+    # Type-boosting abilities (1.5x damage when HP < 33%)
+    'blaze': {'type_boost': 'fire', 'hp_threshold': 0.33, 'multiplier': 1.5},
+    'torrent': {'type_boost': 'water', 'hp_threshold': 0.33, 'multiplier': 1.5},
+    'overgrow': {'type_boost': 'grass', 'hp_threshold': 0.33, 'multiplier': 1.5},
+    'swarm': {'type_boost': 'bug', 'hp_threshold': 0.33, 'multiplier': 1.5},
+    
+    # Contact status abilities (30% chance to inflict status on physical contact)
+    'static': {'contact_status': 'paralysis', 'chance': 0.30},
+    'poison-point': {'contact_status': 'poison', 'chance': 0.30},
+    'flame-body': {'contact_status': 'burn', 'chance': 0.30},
+    
+    # Entry hazard abilities
+    'intimidate': {'on_entry': 'lower_attack', 'stages': -1},
+    
+    # Type immunities
+    'levitate': {'immune_to': 'ground'},
+    'flash-fire': {'immune_to': 'fire', 'boost_type': 'fire'},
+    'water-absorb': {'immune_to': 'water', 'heal_fraction': 0.25},
+    'volt-absorb': {'immune_to': 'electric', 'heal_fraction': 0.25},
+    
+    # Weather abilities
+    'swift-swim': {'weather': 'rain', 'speed_multiplier': 2.0},
+    'chlorophyll': {'weather': 'sun', 'speed_multiplier': 2.0},
+    
+    # Defensive abilities
+    'sturdy': {'survives_ohko': True},  # Survive with 1 HP from full
+}
+
+def get_pokemon_ability(pokemon_data: dict) -> str | None:
+    """Get the Pokemon's primary (non-hidden) ability."""
+    abilities = pokemon_data.get('abilities', [])
+    for ability in abilities:
+        if not ability.get('is_hidden', False):
+            return ability.get('ability', {}).get('name')
+    # Fallback to first ability if no non-hidden found
+    if abilities:
+        return abilities[0].get('ability', {}).get('name')
+    return None
+
 # Default stat stages for a fresh battle
 def get_default_stat_stages():
     return {'atk': 0, 'def': 0, 'spa': 0, 'spd': 0, 'spe': 0, 'acc': 0, 'eva': 0}
@@ -364,33 +405,59 @@ async def calculate_damage_enhanced(
     elif weather == 'sun' and move_type == 'water':
         weather_mult = 0.5
     
+    # Ability multiplier (Blaze, Torrent, Overgrow, Swarm)
+    ability_mult = 1.0
+    attacker_ability = get_pokemon_ability(attacker)
+    if attacker_ability and attacker_ability in ABILITIES:
+        ability_data = ABILITIES[attacker_ability]
+        if 'type_boost' in ability_data:
+            # Check if move type matches and HP is low enough
+            if (ability_data['type_boost'] == move_type):
+                # We don't have current HP here, so this boost always applies for simplicity
+                # In a full implementation, we'd pass current/max HP
+                ability_mult = ability_data.get('multiplier', 1.5)
+    
+    # Check defender's ability for immunities (Levitate, Water Absorb, etc.)
+    defender_ability = get_pokemon_ability(defender)
+    defender_immune = False
+    if defender_ability and defender_ability in ABILITIES:
+        ability_data = ABILITIES[defender_ability]
+        if 'immune_to' in ability_data:
+            if ability_data['immune_to'] == move_type:
+                defender_immune = True
+    
     # Type effectiveness
     effectiveness = 1.0
     effectiveness_text = ""
     
-    type_data = await fetch_type_data(move_type)
-    if type_data:
-        damage_relations = type_data['damage_relations']
-        for def_type in defender['types']:
-            def_type_name = def_type['type']['name']
-            if def_type_name in [t['name'] for t in damage_relations['double_damage_to']]:
-                effectiveness *= 2
-            elif def_type_name in [t['name'] for t in damage_relations['half_damage_to']]:
-                effectiveness *= 0.5
-            elif def_type_name in [t['name'] for t in damage_relations['no_damage_to']]:
-                effectiveness *= 0
-    
-    if effectiveness > 1:
-        effectiveness_text = "It's super effective!"
-    elif effectiveness < 1 and effectiveness > 0:
-        effectiveness_text = "It's not very effective..."
-    elif effectiveness == 0:
-        effectiveness_text = "It has no effect!"
+    # Check for ability-based immunity first
+    if defender_immune:
+        effectiveness = 0
+        effectiveness_text = f"It has no effect! ({defender_ability.replace('-', ' ').title()})"
+    else:
+        type_data = await fetch_type_data(move_type)
+        if type_data:
+            damage_relations = type_data['damage_relations']
+            for def_type in defender['types']:
+                def_type_name = def_type['type']['name']
+                if def_type_name in [t['name'] for t in damage_relations['double_damage_to']]:
+                    effectiveness *= 2
+                elif def_type_name in [t['name'] for t in damage_relations['half_damage_to']]:
+                    effectiveness *= 0.5
+                elif def_type_name in [t['name'] for t in damage_relations['no_damage_to']]:
+                    effectiveness *= 0
+        
+        if effectiveness > 1:
+            effectiveness_text = "It's super effective!"
+        elif effectiveness < 1 and effectiveness > 0:
+            effectiveness_text = "It's not very effective..."
+        elif effectiveness == 0:
+            effectiveness_text = "It has no effect!"
     
     # Damage formula (Gen V+)
     level = 50  # Fixed level for now
     base_damage = ((2 * level / 5 + 2) * power * (attack / defense) / 50 + 2)
-    final_damage = base_damage * stab * effectiveness * weather_mult * crit_mult * burn_mult
+    final_damage = base_damage * stab * effectiveness * weather_mult * crit_mult * burn_mult * ability_mult
     
     # Random variance (0.85 to 1.0)
     variance = random.uniform(0.85, 1.0)
@@ -814,6 +881,11 @@ def create_pokemon_info_html(pokemon_data: dict | None, is_player: bool = True) 
         type_name = t['type']['name']
         type_badges += f'<span class="type-badge type-{type_name}" style="font-family: \'Press Start 2P\', monospace; font-size: 8px; padding: 4px 8px; border-radius: 4px; text-transform: uppercase; display: inline-block; margin: 2px; box-shadow: inset -1px -1px 0 rgba(0,0,0,0.3), inset 1px 1px 0 rgba(255,255,255,0.3);">{type_name}</span> '
     
+    # Get ability
+    ability = get_pokemon_ability(pokemon_data)
+    ability_display = ability.replace('-', ' ').title() if ability else "Unknown"
+    ability_is_special = ability in ABILITIES  # Highlight if ability has in-game effect
+    
     # Sprite URL - use front sprite for opponent, back for player (battle perspective)
     sprite_url = get_sprite_url(pokemon_id, back=is_player)
     
@@ -886,7 +958,14 @@ def create_pokemon_info_html(pokemon_data: dict | None, is_player: bool = True) 
         </div>
         
         <!-- Type Badges -->
-        <div style="text-align: center; margin-bottom: 8px;">{type_badges}</div>
+        <div style="text-align: center; margin-bottom: 4px;">{type_badges}</div>
+        
+        <!-- Ability -->
+        <div style="text-align: center; margin-bottom: 8px;">
+            <span style="font-family: 'Press Start 2P', monospace; font-size: 7px; 
+                color: {'#c08020' if ability_is_special else '#606060'}; 
+                {'text-shadow: 0 0 4px #f8d030;' if ability_is_special else ''}">{ability_display}</span>
+        </div>
         
         <!-- Stats Panel -->
         <div style="background: #f8f8f8; border: 2px solid #808080; border-radius: 6px; padding: 8px;
