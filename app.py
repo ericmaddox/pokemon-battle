@@ -1007,46 +1007,54 @@ def create_hp_bar_html(name: str, hp_percent: int, is_player: bool, level: int =
             <div class="{damage_class}" style="flex: 1; height: 8px; background: #484848; border-radius: 4px; padding: 2px; box-shadow: inset 1px 1px 0 #202020;">
                 <div id="{side_id}-hp-bar" class="{bar_class}" style="width: {hp_percent}%; height: 100%; background: {bar_color}; border-radius: 2px; transition: width 0.8s ease-out;"></div>
             </div>
+    """
+    
+def create_hp_bar_html(name: str, percentage: int, is_player: bool, level: int = 50, animate_damage: bool = False) -> str:
+    """Create HTML HP bar with 3D styling"""
+    color = "green"
+    if percentage < 50: color = "yellow"
+    if percentage < 20: color = "red"
+    
+    fill_class = f"hp-fill {color}" if color != "green" else "hp-fill"
+    
+    return f"""
+    <div style="margin-bottom: 8px;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 2px;">
+            <span style="font-family: 'Press Start 2P'; font-size: 10px; color: #303030;">{name}</span>
+            <span style="font-family: 'Press Start 2P'; font-size: 10px; color: #303030;">Lv{level}</span>
         </div>
-        <div style="text-align: right; margin-top: 4px;">
-            <span style="font-family: 'Press Start 2P', monospace; font-size: 10px; color: #303030;">{hp_percent}/100</span>
+        <div class="hp-bar-container">
+            <div class="{fill_class}" style="width: {percentage}%"></div>
         </div>
     </div>
     """
 
-def format_battle_log(events: list[dict], turn_number: int = 0, player_name: str = "") -> str:
-    """Format battle events into Pokemon game-style HTML with turn separators and animations."""
-    if not events:
-        prompt = f"What will {player_name} do?" if player_name else "What will you do?"
-        return f"""<div style="font-family: 'Press Start 2P', monospace; font-size: 11px; color: #303030; 
-            text-align: center; padding: 20px; line-height: 2;">{prompt}</div>"""
-    
+def format_battle_log(event_list, turn=None, active_pokemon=None):
+    """Format battle log events into HTML with retro styling."""
+    if not event_list:
+        return ""
+        
     html = ""
-    current_turn = 0
-    animation_scripts = []  # Collect animation triggers
+    animation_scripts = []
     
-    for event in events:
-        event_type = event.get("type", "info")
-        message = event.get("message", "")
-        turn = event.get("turn", 0)
-        attacker = event.get("attacker", "player")  # Track who is attacking
-        move_type = event.get("move_type", "normal")  # For type-based VFX
-        is_critical = event.get("critical", False)
+    for event in event_list:
+        event_type = event.get('type')
+        message = event.get('message')
+        turn_num = event.get('turn')
         
-        # Add turn separator when turn changes
-        if turn > current_turn:
-            current_turn = turn
-            html += f"""<div style="font-family: 'Press Start 2P', monospace; font-size: 10px; 
-                color: #6890f0; padding: 8px 0 4px; margin-top: 8px; 
-                border-top: 2px dashed #a0a0a0;">─── TURN {turn} ───</div>"""
-        
-        # Add animation triggers based on event type
+        # Add turn header if it's a new turn
+        if turn_num and (not html or f"TURN {turn_num}" not in html):
+            html += f'<div style="text-align: center; margin: 12px 0; border-top: 2px dashed #c0c0c0; padding-top: 8px; color: #808080;">─ TURN {turn_num} ─</div>'
+
+        # Animation Triggers (same as before)
         if event_type == "attack":
-            defender = "opponent" if attacker == "player" else "player"
-            animation_scripts.append(f"setTimeout(function(){{ if(window.triggerAttackAnimation) window.triggerAttackAnimation('{attacker}', '{move_type}'); }}, 100);")
+            attacker = event.get('attacker', 'opponent').lower()
+            move = event.get('move_type', 'normal')
+            animation_scripts.append(f"setTimeout(function(){{ if(window.triggerAttackAnimation) window.triggerAttackAnimation('{attacker}', '{move}'); }}, 100);")
         elif event_type == "damage":
-            defender = event.get("defender", "opponent")
-            if is_critical:
+            defender = event.get('defender', 'opponent').lower()
+            critical = event.get('critical', False)
+            if critical:
                 animation_scripts.append(f"setTimeout(function(){{ if(window.triggerHitAnimation) window.triggerHitAnimation('{defender}', true); if(window.triggerScreenShake) window.triggerScreenShake(); }}, 200);")
             else:
                 animation_scripts.append(f"setTimeout(function(){{ if(window.triggerHitAnimation) window.triggerHitAnimation('{defender}', false); }}, 200);")
@@ -1058,7 +1066,7 @@ def format_battle_log(events: list[dict], turn_number: int = 0, player_name: str
         
         # Style based on event type - Pokemon game colors
         styles = {
-            "turn_start": "color: #6890f0; font-size: 10px;",
+            "turn_start": "color: #6890f0;",
             "speed": "color: #808080; font-size: 9px; padding-left: 8px;",
             "attack": "color: #303030; margin-top: 6px;",
             "stab": "color: #78c850; padding-left: 16px; font-size: 9px;",
@@ -1075,19 +1083,17 @@ def format_battle_log(events: list[dict], turn_number: int = 0, player_name: str
         }
         
         style = styles.get(event_type, "color: #303030;")
-        html += f'<div style="font-family: \'Press Start 2P\', monospace; font-size: 11px; padding: 2px 0; line-height: 1.8; {style}">{message}</div>'
+        # Wrap in .log-entry for animation
+        html += f'<div class="log-entry" style="{style}">{message}</div>'
     
-    # Add animation triggers using img onerror trick (script tags don't execute in Gradio HTML)
+    # Add animation triggers
     anim_html = ""
     if animation_scripts:
-        # Use an invalid src to trigger onerror which DOES execute JavaScript
         js_code = ' '.join(animation_scripts)
         anim_html = f'<img src="x" onerror="{js_code}" style="display:none">'
     
-    # Wrap in scrollable container
-    return f"""<div style="background: #f8f8f8; border: 4px solid #404040; border-radius: 12px; padding: 16px;
-        box-shadow: inset -3px -3px 0 #c0c0c0, inset 3px 3px 0 #ffffff, 5px 5px 0 #303030;
-        max-height: 350px; overflow-y: auto;">
+    # Wrap in new container class
+    return f"""<div class="battle-log-container">
         {html}
     </div>{anim_html}"""
 

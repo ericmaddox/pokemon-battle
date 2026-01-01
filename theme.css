@@ -1,1295 +1,222 @@
-/* Pokemon Battle GUI - Nintendo Pokemon Game Style Theme */
 @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
 
-:root {
-    /* Pokemon Game Color Palette */
-    --bg-grass: #88c070;
-    --bg-grass-dark: #68a050;
-    --bg-grass-light: #a8d090;
-
-    --panel-bg: #f8f8f8;
-    --panel-border: #404040;
-    --panel-border-light: #d8d8d8;
-    --panel-shadow: #303030;
-
-    --hp-green: #20d070;
-    --hp-yellow: #f8c830;
-    --hp-red: #f85030;
-    --hp-bar-bg: #484848;
-
-    --exp-blue: #58a8f8;
-
-    --text-dark: #303030;
-    --text-light: #f8f8f8;
-
-    --pokemon-red: #e03838;
-    --pokemon-blue: #4080c0;
-    --pokemon-yellow: #f8d030;
-}
-
-/* Global Reset for Pokemon Style */
+/* ══════════════════════════════════════════════════════════════════════════
+   GLOBAL THEME & TYPOGRAPHY
+   ══════════════════════════════════════════════════════════════════════════ */
+body,
 .gradio-container {
-    background: linear-gradient(180deg, #78b8e8 0%, #58a0d0 50%, var(--bg-grass) 50%, var(--bg-grass-dark) 100%) !important;
     font-family: 'Press Start 2P', monospace !important;
-    min-height: 100vh;
-    image-rendering: pixelated;
+    background-color: #202020 !important;
+    color: #f8f8f8 !important;
 }
 
-/* ═══════════════════════════════════════════════════════════════════════
-   POKEMON-STYLE PANEL (Textbox Style)
-   ═══════════════════════════════════════════════════════════════════════ */
-
-.pokemon-panel {
-    background: var(--panel-bg) !important;
-    border: 4px solid var(--panel-border) !important;
-    border-radius: 12px !important;
-    box-shadow:
-        inset -4px -4px 0 var(--panel-border-light),
-        inset 4px 4px 0 #ffffff,
-        6px 6px 0 var(--panel-shadow) !important;
-    padding: 16px !important;
-    position: relative;
-}
-
-.pokemon-panel::before {
-    content: '';
+/* ══════════════════════════════════════════════════════════════════════════
+   CRT SCANLINE OVERLAY
+   ══════════════════════════════════════════════════════════════════════════ */
+.gradio-container::before {
+    content: " ";
+    display: block;
     position: absolute;
-    top: 4px;
-    left: 4px;
-    right: 4px;
-    bottom: 4px;
-    border: 2px solid var(--panel-border-light);
-    border-radius: 8px;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+    z-index: 9999;
+    background-size: 100% 2px, 3px 100%;
     pointer-events: none;
 }
 
-/* ═══════════════════════════════════════════════════════════════════════
-   POKEMON HP BOX (Classic Style)
-   ═══════════════════════════════════════════════════════════════════════ */
-
-.hp-box {
-    background: linear-gradient(180deg, #e8e8e8 0%, #d0d0d0 100%);
-    border: 3px solid #404040;
-    border-radius: 0 0 16px 0;
-    padding: 8px 16px;
-    box-shadow:
-        inset -2px -2px 0 #a0a0a0,
-        inset 2px 2px 0 #ffffff;
-    min-width: 200px;
-}
-
-.hp-box-enemy {
-    border-radius: 0 0 0 16px;
-    float: right;
-}
-
-.pokemon-name {
-    font-family: 'Press Start 2P', monospace;
-    font-size: 14px;
-    color: var(--text-dark);
-    margin-bottom: 4px;
-    text-transform: uppercase;
-}
-
-.pokemon-level {
-    font-family: 'Press Start 2P', monospace;
-    font-size: 11px;
-    color: var(--text-dark);
-    float: right;
-}
-
-.hp-label {
-    font-family: 'Press Start 2P', monospace;
-    font-size: 10px;
-    color: #f89030;
-    margin-right: 4px;
-}
-
-.hp-bar-outer {
-    background: var(--hp-bar-bg);
-    border-radius: 4px;
-    height: 8px;
-    padding: 2px;
-    box-shadow: inset 1px 1px 0 #202020;
-}
-
-.hp-bar-inner {
-    height: 100%;
-    border-radius: 2px;
-    transition: width 0.5s ease-out, background-color 0.3s ease;
-}
-
-.hp-bar-green {
-    background: linear-gradient(180deg, #70f880 0%, var(--hp-green) 50%, #18a050 100%);
-}
-
-.hp-bar-yellow {
-    background: linear-gradient(180deg, #f8e870 0%, var(--hp-yellow) 50%, #c8a028 100%);
-}
-
-.hp-bar-red {
-    background: linear-gradient(180deg, #f88070 0%, var(--hp-red) 50%, #c03020 100%);
-}
-
-.hp-numbers {
-    font-family: 'Press Start 2P', monospace;
-    font-size: 12px;
-    color: var(--text-dark);
-    text-align: right;
-    margin-top: 4px;
-}
-
-/* ═══════════════════════════════════════════════════════════════════════
-   BATTLE MENU (Classic 2x2 Grid)
-   ═══════════════════════════════════════════════════════════════════════ */
-
-.battle-menu {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-    background: var(--panel-bg);
-    border: 4px solid var(--panel-border);
+/* ══════════════════════════════════════════════════════════════════════════
+   BATTLE ARENA
+   ══════════════════════════════════════════════════════════════════════════ */
+#battle-arena {
+    background-color: #f8f8f8;
+    background-image:
+        linear-gradient(#e8e8e8 2px, transparent 2px),
+        linear-gradient(90deg, #e8e8e8 2px, transparent 2px);
+    background-size: 20px 20px;
+    border: 4px solid #404040;
     border-radius: 12px;
-    padding: 12px;
     box-shadow:
-        inset -4px -4px 0 var(--panel-border-light),
+        inset -4px -4px 0 #c0c0c0,
         inset 4px 4px 0 #ffffff,
-        6px 6px 0 var(--panel-shadow);
-}
-
-.battle-menu-btn {
-    font-family: 'Press Start 2P', monospace !important;
-    font-size: 12px !important;
-    color: var(--text-dark) !important;
-    background: transparent !important;
-    border: none !important;
-    padding: 12px 16px !important;
-    cursor: pointer;
-    text-align: left;
-    transition: all 0.1s ease;
+        5px 5px 0 #303030;
+    overflow: hidden;
     position: relative;
 }
 
-.battle-menu-btn::before {
-    content: '▶';
-    position: absolute;
-    left: 0;
-    opacity: 0;
-    transition: opacity 0.1s ease;
-}
-
-.battle-menu-btn:hover::before,
-.battle-menu-btn:focus::before {
-    opacity: 1;
-}
-
-.battle-menu-btn:hover,
-.battle-menu-btn:focus {
-    padding-left: 24px !important;
-}
-
-/* ═══════════════════════════════════════════════════════════════════════
-   MESSAGE BOX (Bottom Text Box)
-   ═══════════════════════════════════════════════════════════════════════ */
-
-.message-box {
-    background: var(--panel-bg);
-    border: 4px solid var(--panel-border);
-    border-radius: 12px;
-    padding: 16px 20px;
-    box-shadow:
-        inset -4px -4px 0 var(--panel-border-light),
-        inset 4px 4px 0 #ffffff,
-        6px 6px 0 var(--panel-shadow);
-    min-height: 80px;
-}
-
-.message-text {
-    font-family: 'Press Start 2P', monospace;
-    font-size: 14px;
-    color: var(--text-dark);
-    line-height: 2;
-    text-transform: uppercase;
-}
-
-/* Blinking cursor indicator */
-.message-box::after {
-    content: '▼';
-    font-family: 'Press Start 2P', monospace;
-    font-size: 12px;
-    position: absolute;
-    bottom: 12px;
-    right: 16px;
-    animation: blink 0.8s infinite;
-}
-
-@keyframes blink {
-
-    0%,
-    50% {
-        opacity: 1;
-    }
-
-    51%,
-    100% {
-        opacity: 0;
-    }
-}
-
-/* ═══════════════════════════════════════════════════════════════════════
-   POKEMON SPRITE AREA
-   ═══════════════════════════════════════════════════════════════════════ */
-
-.sprite-area {
-    display: flex;
-    justify-content: center;
-    align-items: flex-end;
-    min-height: 180px;
-    position: relative;
-}
-
-.sprite-platform {
-    width: 120px;
-    height: 20px;
-    background: linear-gradient(180deg, #78a858 0%, #486830 100%);
-    border-radius: 50%;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-}
-
-.sprite-img {
-    width: 120px !important;
-    height: 120px !important;
-    image-rendering: pixelated !important;
-    filter: drop-shadow(2px 2px 0 rgba(0, 0, 0, 0.3));
-    transform-origin: bottom center;
-}
-
-.sprite-img:hover {
-    animation: pokemon-bounce 0.3s ease;
-}
-
-@keyframes pokemon-bounce {
-
-    0%,
-    100% {
+/* Sprite Animations */
+@keyframes idle-float {
+    0% {
         transform: translateY(0);
     }
 
     50% {
-        transform: translateY(-10px);
-    }
-}
-
-/* ═══════════════════════════════════════════════════════════════════════
-   BATTLE LOG (Message History)
-   ═══════════════════════════════════════════════════════════════════════ */
-
-#battle-log {
-    background: var(--panel-bg) !important;
-    border: 4px solid var(--panel-border) !important;
-    border-radius: 12px !important;
-    padding: 12px !important;
-    box-shadow:
-        inset -4px -4px 0 var(--panel-border-light),
-        inset 4px 4px 0 #ffffff,
-        6px 6px 0 var(--panel-shadow) !important;
-    max-height: 300px;
-    overflow-y: auto;
-    font-family: 'Press Start 2P', monospace;
-    font-size: 11px;
-    line-height: 2;
-    color: var(--text-dark);
-}
-
-#battle-log::-webkit-scrollbar {
-    width: 12px;
-}
-
-#battle-log::-webkit-scrollbar-track {
-    background: #d0d0d0;
-    border-radius: 0;
-}
-
-#battle-log::-webkit-scrollbar-thumb {
-    background: #808080;
-    border: 2px solid #d0d0d0;
-}
-
-.log-entry {
-    padding: 6px 8px;
-    margin-bottom: 4px;
-    border-bottom: 2px dashed #c0c0c0;
-    text-transform: uppercase;
-}
-
-.log-attack {
-    color: var(--text-dark);
-}
-
-.log-critical {
-    color: #f08030;
-    font-weight: bold;
-}
-
-.log-effectiveness-super {
-    color: #78c850;
-}
-
-.log-effectiveness-not {
-    color: #a040a0;
-}
-
-.log-victory {
-    color: var(--pokemon-red);
-    background: #f8f8c0;
-    padding: 8px;
-    border: 2px solid #c0a000;
-}
-
-/* ═══════════════════════════════════════════════════════════════════════
-   TYPE BADGES (Pokemon Style)
-   ═══════════════════════════════════════════════════════════════════════ */
-
-.type-badge {
-    font-family: 'Press Start 2P', monospace;
-    font-size: 8px;
-    padding: 4px 8px;
-    border-radius: 4px;
-    text-transform: uppercase;
-    display: inline-block;
-    margin: 2px;
-    box-shadow:
-        inset -1px -1px 0 rgba(0, 0, 0, 0.3),
-        inset 1px 1px 0 rgba(255, 255, 255, 0.3);
-}
-
-.type-normal {
-    background: #a8a878;
-    color: #fff;
-}
-
-.type-fire {
-    background: #f08030;
-    color: #fff;
-}
-
-.type-water {
-    background: #6890f0;
-    color: #fff;
-}
-
-.type-electric {
-    background: #f8d030;
-    color: #303030;
-}
-
-.type-grass {
-    background: #78c850;
-    color: #fff;
-}
-
-.type-ice {
-    background: #98d8d8;
-    color: #303030;
-}
-
-.type-fighting {
-    background: #c03028;
-    color: #fff;
-}
-
-.type-poison {
-    background: #a040a0;
-    color: #fff;
-}
-
-.type-ground {
-    background: #e0c068;
-    color: #303030;
-}
-
-.type-flying {
-    background: #a890f0;
-    color: #fff;
-}
-
-.type-psychic {
-    background: #f85888;
-    color: #fff;
-}
-
-.type-bug {
-    background: #a8b820;
-    color: #fff;
-}
-
-.type-rock {
-    background: #b8a038;
-    color: #fff;
-}
-
-.type-ghost {
-    background: #705898;
-    color: #fff;
-}
-
-.type-dragon {
-    background: #7038f8;
-    color: #fff;
-}
-
-.type-dark {
-    background: #705848;
-    color: #fff;
-}
-
-.type-steel {
-    background: #b8b8d0;
-    color: #303030;
-}
-
-.type-fairy {
-    background: #ee99ac;
-    color: #303030;
-}
-
-/* ═══════════════════════════════════════════════════════════════════════
-   HEADER (Pokemon Logo Style)
-   ═══════════════════════════════════════════════════════════════════════ */
-
-#app-header {
-    text-align: center;
-    padding: 20px 0;
-    margin-bottom: 16px;
-}
-
-#app-title {
-    font-family: 'Press Start 2P', monospace !important;
-    font-size: 24px !important;
-    color: var(--pokemon-yellow) !important;
-    text-shadow:
-        3px 3px 0 #3068a8,
-        -1px -1px 0 #3068a8,
-        1px -1px 0 #3068a8,
-        -1px 1px 0 #3068a8,
-        0 4px 0 #305090 !important;
-    letter-spacing: -1px;
-    margin: 0;
-}
-
-#app-subtitle {
-    font-family: 'Press Start 2P', monospace !important;
-    font-size: 10px !important;
-    color: #f8f8f8 !important;
-    text-shadow: 1px 1px 0 #303030;
-    margin-top: 8px;
-}
-
-/* ═══════════════════════════════════════════════════════════════════════
-   ACTION BUTTONS (Pokemon Style)
-   ═══════════════════════════════════════════════════════════════════════ */
-
-.pokemon-btn {
-    font-family: 'Press Start 2P', monospace !important;
-    font-size: 12px !important;
-    background: linear-gradient(180deg, #f8f8f8 0%, #d0d0d0 100%) !important;
-    border: 4px solid var(--panel-border) !important;
-    border-radius: 8px !important;
-    color: var(--text-dark) !important;
-    padding: 12px 24px !important;
-    cursor: pointer !important;
-    box-shadow:
-        inset -2px -2px 0 #a0a0a0,
-        inset 2px 2px 0 #ffffff,
-        4px 4px 0 var(--panel-shadow) !important;
-    transition: all 0.1s ease !important;
-    text-transform: uppercase;
-}
-
-.pokemon-btn:hover {
-    transform: translate(2px, 2px) !important;
-    box-shadow:
-        inset -2px -2px 0 #a0a0a0,
-        inset 2px 2px 0 #ffffff,
-        2px 2px 0 var(--panel-shadow) !important;
-}
-
-.pokemon-btn:active {
-    transform: translate(4px, 4px) !important;
-    box-shadow:
-        inset -2px -2px 0 #a0a0a0,
-        inset 2px 2px 0 #ffffff,
-        0 0 0 var(--panel-shadow) !important;
-}
-
-.pokemon-btn-primary {
-    background: linear-gradient(180deg, #f85858 0%, #d03030 100%) !important;
-    color: #f8f8f8 !important;
-    border-color: #801818 !important;
-    box-shadow:
-        inset -2px -2px 0 #a02020,
-        inset 2px 2px 0 #f89090,
-        4px 4px 0 #401010 !important;
-}
-
-.pokemon-btn-primary:hover,
-.pokemon-btn-primary:active {
-    box-shadow:
-        inset -2px -2px 0 #a02020,
-        inset 2px 2px 0 #f89090,
-        2px 2px 0 #401010 !important;
-}
-
-/* ═══════════════════════════════════════════════════════════════════════
-   DROPDOWN (Pokemon Style)
-   ═══════════════════════════════════════════════════════════════════════ */
-
-.pokemon-dropdown select,
-.pokemon-dropdown input {
-    font-family: 'Press Start 2P', monospace !important;
-    font-size: 10px !important;
-    background: var(--panel-bg) !important;
-    border: 3px solid var(--panel-border) !important;
-    border-radius: 0 !important;
-    color: var(--text-dark) !important;
-    padding: 10px 12px !important;
-    box-shadow:
-        inset -2px -2px 0 #c0c0c0,
-        inset 2px 2px 0 #ffffff !important;
-    text-transform: uppercase;
-}
-
-.pokemon-dropdown select:focus,
-.pokemon-dropdown input:focus {
-    outline: none !important;
-    border-color: var(--pokemon-blue) !important;
-}
-
-/* ═══════════════════════════════════════════════════════════════════════
-   LABELS (Pokemon Style)
-   ═══════════════════════════════════════════════════════════════════════ */
-
-label {
-    font-family: 'Press Start 2P', monospace !important;
-    font-size: 10px !important;
-    color: #f8f8f8 !important;
-    text-shadow: 1px 1px 0 #303030 !important;
-    text-transform: uppercase;
-    letter-spacing: 0;
-    margin-bottom: 6px !important;
-}
-
-/* ═══════════════════════════════════════════════════════════════════════
-   WEATHER INDICATOR
-   ═══════════════════════════════════════════════════════════════════════ */
-
-.weather-indicator {
-    font-family: 'Press Start 2P', monospace;
-    font-size: 10px;
-    padding: 8px 16px;
-    background: var(--panel-bg);
-    border: 3px solid var(--panel-border);
-    display: inline-block;
-    box-shadow:
-        inset -2px -2px 0 #c0c0c0,
-        inset 2px 2px 0 #ffffff;
-}
-
-.weather-rain {
-    background: #98d8f8;
-    border-color: #3878a8;
-}
-
-.weather-sun {
-    background: #f8e888;
-    border-color: #c09820;
-}
-
-/* ═══════════════════════════════════════════════════════════════════════
-   STATS BARS (Pokemon Style)
-   ═══════════════════════════════════════════════════════════════════════ */
-
-.stat-row {
-    display: flex;
-    align-items: center;
-    margin: 4px 0;
-    font-family: 'Press Start 2P', monospace;
-    font-size: 8px;
-}
-
-.stat-name {
-    width: 80px;
-    color: var(--text-dark);
-    text-transform: uppercase;
-}
-
-.stat-bar-bg {
-    flex: 1;
-    height: 10px;
-    background: #484848;
-    border-radius: 2px;
-    padding: 2px;
-    box-shadow: inset 1px 1px 0 #202020;
-}
-
-.stat-bar-fill {
-    height: 100%;
-    border-radius: 1px;
-}
-
-.stat-hp {
-    background: linear-gradient(180deg, #70f880, #20d070);
-}
-
-.stat-attack {
-    background: linear-gradient(180deg, #f8a878, #f08030);
-}
-
-.stat-defense {
-    background: linear-gradient(180deg, #f8e870, #f8d030);
-}
-
-.stat-sp-atk {
-    background: linear-gradient(180deg, #98c8f8, #6890f0);
-}
-
-.stat-sp-def {
-    background: linear-gradient(180deg, #a8e0a8, #78c850);
-}
-
-.stat-speed {
-    background: linear-gradient(180deg, #f8a8b8, #f85888);
-}
-
-.stat-value {
-    width: 35px;
-    text-align: right;
-    color: var(--text-dark);
-}
-
-/* ═══════════════════════════════════════════════════════════════════════
-   RESPONSIVE
-   ═══════════════════════════════════════════════════════════════════════ */
-
-@media (max-width: 768px) {
-    #app-title {
-        font-size: 16px !important;
+        transform: translateY(-4px);
     }
 
-    .sprite-img {
-        width: 96px !important;
-        height: 96px !important;
-    }
-
-    .pokemon-btn {
-        font-size: 10px !important;
-        padding: 10px 16px !important;
-    }
-}
-
-/* ═══════════════════════════════════════════════════════════════════════
-   POKEMON INFO CARD (Combined HP Box + Stats)
-   ═══════════════════════════════════════════════════════════════════════ */
-
-.pokemon-card-wrapper {
-    background: linear-gradient(180deg, #e0e0e0 0%, #c8c8c8 100%);
-    border: 4px solid #404040;
-    border-radius: 12px;
-    padding: 12px;
-    box-shadow:
-        inset -3px -3px 0 #909090,
-        inset 3px 3px 0 #f8f8f8,
-        5px 5px 0 #303030;
-}
-
-.pokemon-card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 8px;
-    padding-bottom: 8px;
-    border-bottom: 2px solid #a0a0a0;
-}
-
-.pokemon-card-name {
-    font-family: 'Press Start 2P', monospace;
-    font-size: 14px;
-    color: #303030;
-    text-transform: uppercase;
-}
-
-.pokemon-card-level {
-    font-family: 'Press Start 2P', monospace;
-    font-size: 10px;
-    color: #505050;
-}
-
-/* ═══════════════════════════════════════════════════════════════════════
-   MOVE BUTTONS (2x2 Grid - Pokemon Style)
-   ═══════════════════════════════════════════════════════════════════════ */
-
-.move-btn {
-    font-family: 'Press Start 2P', monospace !important;
-    font-size: 9px !important;
-    background: linear-gradient(180deg, #f8f8f8 0%, #d8d8d8 100%) !important;
-    border: 3px solid #404040 !important;
-    border-radius: 8px !important;
-    color: #303030 !important;
-    padding: 14px 10px !important;
-    cursor: pointer !important;
-    box-shadow:
-        inset -2px -2px 0 #a0a0a0,
-        inset 2px 2px 0 #ffffff,
-        3px 3px 0 #202020 !important;
-    transition: all 0.1s ease !important;
-    text-transform: uppercase;
-    min-height: 50px !important;
-    white-space: normal !important;
-    line-height: 1.4 !important;
-}
-
-.move-btn:hover {
-    background: linear-gradient(180deg, #ffffff 0%, #e8e8e8 100%) !important;
-    transform: translate(1px, 1px) !important;
-    box-shadow:
-        inset -2px -2px 0 #a0a0a0,
-        inset 2px 2px 0 #ffffff,
-        2px 2px 0 #202020 !important;
-}
-
-.move-btn:active {
-    transform: translate(3px, 3px) !important;
-    box-shadow:
-        inset -2px -2px 0 #a0a0a0,
-        inset 2px 2px 0 #ffffff,
-        0 0 0 #202020 !important;
-}
-
-/* ═══════════════════════════════════════════════════════════════════════
-   BATTLE ANIMATIONS
-   ═══════════════════════════════════════════════════════════════════════ */
-
-/* Sprite Shake - When Pokemon gets hit */
-@keyframes pokemon-shake {
-
-    0%,
     100% {
-        transform: translateX(0);
-    }
-
-    10%,
-    30%,
-    50%,
-    70%,
-    90% {
-        transform: translateX(-8px);
-    }
-
-    20%,
-    40%,
-    60%,
-    80% {
-        transform: translateX(8px);
+        transform: translateY(0);
     }
 }
 
-.pokemon-shake {
-    animation: pokemon-shake 0.5s ease-in-out;
+.pokemon-sprite {
+    display: block;
+    margin: 0 auto;
+    image-rendering: pixelated;
+    filter: drop-shadow(0 4px 0 rgba(0, 0, 0, 0.3));
+    animation: idle-float 2s ease-in-out infinite;
 }
 
-/* Flash Effect - Damage taken */
-@keyframes pokemon-flash {
-
-    0%,
-    100% {
-        opacity: 1;
-        filter: brightness(1);
-    }
-
-    25%,
-    75% {
-        opacity: 0.3;
-        filter: brightness(2);
-    }
-
-    50% {
-        opacity: 1;
-        filter: brightness(1);
-    }
-}
-
-.pokemon-flash {
-    animation: pokemon-flash 0.4s ease-in-out;
-}
-
-/* Hit Flash - Quick white flash on damage */
-@keyframes hit-flash {
+/* Hit Effects */
+@keyframes shake {
     0% {
-        filter: brightness(1) drop-shadow(2px 2px 0 rgba(0, 0, 0, 0.3));
+        transform: translate(1px, 1px) rotate(0deg);
+    }
+
+    10% {
+        transform: translate(-1px, -2px) rotate(-1deg);
+    }
+
+    20% {
+        transform: translate(-3px, 0px) rotate(1deg);
+    }
+
+    30% {
+        transform: translate(3px, 2px) rotate(0deg);
+    }
+
+    40% {
+        transform: translate(1px, -1px) rotate(1deg);
     }
 
     50% {
-        filter: brightness(3) drop-shadow(0 0 20px #fff);
+        transform: translate(-1px, 2px) rotate(-1deg);
+    }
+
+    60% {
+        transform: translate(-3px, 1px) rotate(0deg);
+    }
+
+    70% {
+        transform: translate(3px, 1px) rotate(-1deg);
+    }
+
+    80% {
+        transform: translate(-1px, -1px) rotate(1deg);
+    }
+
+    90% {
+        transform: translate(1px, 2px) rotate(0deg);
     }
 
     100% {
-        filter: brightness(1) drop-shadow(2px 2px 0 rgba(0, 0, 0, 0.3));
+        transform: translate(1px, -2px) rotate(-1deg);
     }
 }
 
 .pokemon-hit {
-    animation: hit-flash 0.2s ease-out, pokemon-shake 0.5s ease-in-out;
-}
-
-/* Slide Attack - Attacker moves forward */
-@keyframes slide-attack-right {
-    0% {
-        transform: translateX(0);
-    }
-
-    30% {
-        transform: translateX(40px);
-    }
-
-    100% {
-        transform: translateX(0);
-    }
-}
-
-@keyframes slide-attack-left {
-    0% {
-        transform: translateX(0);
-    }
-
-    30% {
-        transform: translateX(-40px);
-    }
-
-    100% {
-        transform: translateX(0);
-    }
-}
-
-.pokemon-attack-right {
-    animation: slide-attack-right 0.4s ease-out;
-}
-
-.pokemon-attack-left {
-    animation: slide-attack-left 0.4s ease-out;
-}
-
-/* Faint Animation - Pokemon defeated */
-@keyframes pokemon-faint {
-    0% {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-    }
-
-    50% {
-        opacity: 0.5;
-        transform: translateY(20px) scale(0.9);
-    }
-
-    100% {
-        opacity: 0;
-        transform: translateY(60px) scale(0.5);
-    }
-}
-
-.pokemon-faint {
-    animation: pokemon-faint 1s ease-in forwards;
-}
-
-/* Critical Hit - Extra intense flash */
-@keyframes critical-hit {
-    0% {
-        filter: brightness(1);
-        transform: scale(1);
-    }
-
-    25% {
-        filter: brightness(2.5) hue-rotate(30deg);
-        transform: scale(1.05);
-    }
-
-    50% {
-        filter: brightness(1);
-        transform: scale(1);
-    }
-
-    75% {
-        filter: brightness(2);
-        transform: scale(1.02);
-    }
-
-    100% {
-        filter: brightness(1);
-        transform: scale(1);
-    }
+    animation: shake 0.5s;
+    filter: brightness(0) invert(1) !important;
+    /* Flash white */
 }
 
 .pokemon-critical {
-    animation: critical-hit 0.6s ease-out, pokemon-shake 0.5s ease-in-out;
+    animation: shake 0.5s;
+    filter: sepia(100%) hue-rotate(-50deg) saturate(600%) !important;
+    /* Flash red */
 }
 
-/* ═══════════════════════════════════════════════════════════════════════
-   TYPE-BASED ATTACK EFFECTS
-   ═══════════════════════════════════════════════════════════════════════ */
-
-/* Fire Attack Effect */
-@keyframes fire-effect {
-    0% {
-        box-shadow: 0 0 0 rgba(240, 128, 48, 0);
-    }
-
-    50% {
-        box-shadow: 0 0 40px rgba(240, 128, 48, 0.8), 0 0 80px rgba(255, 100, 0, 0.4);
-    }
-
-    100% {
-        box-shadow: 0 0 0 rgba(240, 128, 48, 0);
-    }
+/* ══════════════════════════════════════════════════════════════════════════
+   HP BARS (3D Style)
+   ══════════════════════════════════════════════════════════════════════════ */
+.hp-bar-container {
+    background: #404040;
+    border: 2px solid #303030;
+    border-radius: 8px;
+    padding: 2px;
+    box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.3);
 }
 
-.effect-fire {
-    animation: fire-effect 0.5s ease-out;
+.hp-fill {
+    height: 8px;
+    border-radius: 4px;
+    background: linear-gradient(to bottom, #70f8a8 0%, #70f8a8 50%, #40c078 51%, #40c078 100%);
+    border-right: 2px solid #303030;
+    /* 3D edge */
+    transition: width 0.5s ease-out, background 0.5s ease;
 }
 
-/* Electric Attack Effect */
-@keyframes electric-effect {
-
-    0%,
-    100% {
-        box-shadow: 0 0 0 rgba(248, 208, 48, 0);
-        filter: brightness(1);
-    }
-
-    20% {
-        box-shadow: 0 0 30px rgba(248, 208, 48, 0.9);
-        filter: brightness(1.5);
-    }
-
-    40% {
-        box-shadow: 0 0 10px rgba(248, 208, 48, 0.3);
-        filter: brightness(1);
-    }
-
-    60% {
-        box-shadow: 0 0 50px rgba(255, 255, 100, 1);
-        filter: brightness(2);
-    }
-
-    80% {
-        box-shadow: 0 0 20px rgba(248, 208, 48, 0.5);
-        filter: brightness(1.2);
-    }
+.hp-fill.yellow {
+    background: linear-gradient(to bottom, #f8e038 0%, #f8e038 50%, #c0a820 51%, #c0a820 100%);
 }
 
-.effect-electric {
-    animation: electric-effect 0.4s ease-out;
+.hp-fill.red {
+    background: linear-gradient(to bottom, #f85838 0%, #f85838 50%, #c03010 51%, #c03010 100%);
 }
 
-/* Water Attack Effect */
-@keyframes water-effect {
-    0% {
-        box-shadow: 0 0 0 rgba(104, 144, 240, 0);
+/* ══════════════════════════════════════════════════════════════════════════
+   BATTLE LOG
+   ══════════════════════════════════════════════════════════════════════════ */
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(5px);
     }
 
-    50% {
-        box-shadow: 0 0 40px rgba(104, 144, 240, 0.8), 0 0 60px rgba(150, 200, 255, 0.5);
-    }
-
-    100% {
-        box-shadow: 0 0 0 rgba(104, 144, 240, 0);
-    }
-}
-
-.effect-water {
-    animation: water-effect 0.5s ease-out;
-}
-
-/* Grass Attack Effect */
-@keyframes grass-effect {
-    0% {
-        box-shadow: 0 0 0 rgba(120, 200, 80, 0);
-    }
-
-    50% {
-        box-shadow: 0 0 35px rgba(120, 200, 80, 0.8), 0 0 60px rgba(180, 255, 100, 0.4);
-    }
-
-    100% {
-        box-shadow: 0 0 0 rgba(120, 200, 80, 0);
-    }
-}
-
-.effect-grass {
-    animation: grass-effect 0.5s ease-out;
-}
-
-/* Psychic Attack Effect */
-@keyframes psychic-effect {
-    0% {
-        box-shadow: 0 0 0 rgba(248, 88, 136, 0);
-        filter: hue-rotate(0deg);
-    }
-
-    50% {
-        box-shadow: 0 0 50px rgba(248, 88, 136, 0.9);
-        filter: hue-rotate(20deg);
-    }
-
-    100% {
-        box-shadow: 0 0 0 rgba(248, 88, 136, 0);
-        filter: hue-rotate(0deg);
-    }
-}
-
-.effect-psychic {
-    animation: psychic-effect 0.6s ease-out;
-}
-
-/* Ice Attack Effect */
-@keyframes ice-effect {
-    0% {
-        box-shadow: 0 0 0 rgba(152, 216, 216, 0);
-        filter: brightness(1);
-    }
-
-    50% {
-        box-shadow: 0 0 40px rgba(152, 216, 216, 0.9), 0 0 60px rgba(200, 255, 255, 0.6);
-        filter: brightness(1.3);
-    }
-
-    100% {
-        box-shadow: 0 0 0 rgba(152, 216, 216, 0);
-        filter: brightness(1);
-    }
-}
-
-.effect-ice {
-    animation: ice-effect 0.5s ease-out;
-}
-
-/* Fighting Attack Effect */
-@keyframes fighting-effect {
-    0% {
-        transform: scale(1);
-        box-shadow: 0 0 0 rgba(192, 48, 40, 0);
-    }
-
-    30% {
-        transform: scale(1.1);
-        box-shadow: 0 0 30px rgba(192, 48, 40, 0.8);
-    }
-
-    100% {
-        transform: scale(1);
-        box-shadow: 0 0 0 rgba(192, 48, 40, 0);
-    }
-}
-
-.effect-fighting {
-    animation: fighting-effect 0.3s ease-out;
-}
-
-/* Ghost Attack Effect */
-@keyframes ghost-effect {
-    0% {
+    to {
         opacity: 1;
-        box-shadow: 0 0 0 rgba(112, 88, 152, 0);
-    }
-
-    30% {
-        opacity: 0.5;
-        box-shadow: 0 0 40px rgba(112, 88, 152, 0.8);
-    }
-
-    60% {
-        opacity: 0.8;
-        box-shadow: 0 0 60px rgba(150, 100, 200, 0.6);
-    }
-
-    100% {
-        opacity: 1;
-        box-shadow: 0 0 0 rgba(112, 88, 152, 0);
+        transform: translateY(0);
     }
 }
 
-.effect-ghost {
-    animation: ghost-effect 0.7s ease-out;
+.battle-log-container {
+    background: #f8f8f8;
+    border: 4px solid #404040;
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: inset -3px -3px 0 #c0c0c0, inset 3px 3px 0 #ffffff, 5px 5px 0 #303030;
+    max-height: 350px;
+    overflow-y: auto;
 }
 
-/* Normal Attack Effect */
-@keyframes normal-effect {
-    0% {
-        transform: scale(1);
-    }
-
-    50% {
-        transform: scale(1.05);
-    }
-
-    100% {
-        transform: scale(1);
-    }
+.log-entry {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 11px;
+    padding: 4px 0;
+    line-height: 1.6;
+    animation: slideIn 0.3s ease-out;
+    border-bottom: 1px dashed #e0e0e0;
 }
 
-.effect-normal {
-    animation: normal-effect 0.3s ease-out;
+.log-entry:last-child {
+    border-bottom: none;
+    background-color: rgba(0, 0, 0, 0.03);
+    /* Highlight newest */
 }
 
-/* Dragon Attack Effect */
-@keyframes dragon-effect {
-    0% {
-        box-shadow: 0 0 0 rgba(112, 56, 248, 0);
-        filter: hue-rotate(0deg);
-    }
-
-    25% {
-        box-shadow: 0 0 40px rgba(112, 56, 248, 0.9);
-        filter: hue-rotate(-20deg);
-    }
-
-    50% {
-        box-shadow: 0 0 60px rgba(200, 100, 255, 0.7);
-        filter: hue-rotate(20deg);
-    }
-
-    75% {
-        box-shadow: 0 0 40px rgba(112, 56, 248, 0.9);
-        filter: hue-rotate(-10deg);
-    }
-
-    100% {
-        box-shadow: 0 0 0 rgba(112, 56, 248, 0);
-        filter: hue-rotate(0deg);
-    }
+/* ══════════════════════════════════════════════════════════════════════════
+   BUTTONS
+   ══════════════════════════════════════════════════════════════════════════ */
+button {
+    font-family: 'Press Start 2P', monospace !important;
+    text-transform: uppercase;
+    box-shadow: 4px 4px 0 #303030 !important;
+    border: 2px solid #f8f8f8 !important;
+    transition: all 0.1s !important;
 }
 
-.effect-dragon {
-    animation: dragon-effect 0.6s ease-out;
+button:active {
+    transform: translate(2px, 2px);
+    box-shadow: 2px 2px 0 #303030 !important;
 }
 
-/* ═══════════════════════════════════════════════════════════════════════
-   HP BAR ANIMATIONS
-   ═══════════════════════════════════════════════════════════════════════ */
-
-/* Smooth HP decrease */
-.hp-bar-animated {
-    transition: width 0.8s ease-out, background 0.5s ease !important;
+.move-btn {
+    background: #f8f8f8 !important;
+    color: #303030 !important;
 }
 
-/* HP bar pulse when low */
-@keyframes hp-pulse-red {
-
-    0%,
-    100% {
-        opacity: 1;
-    }
-
-    50% {
-        opacity: 0.6;
-    }
-}
-
-.hp-bar-critical {
-    animation: hp-pulse-red 0.8s infinite;
-}
-
-/* Damage flash on HP bar */
-@keyframes hp-damage-flash {
-    0% {
-        filter: brightness(1);
-    }
-
-    50% {
-        filter: brightness(2);
-    }
-
-    100% {
-        filter: brightness(1);
-    }
-}
-
-.hp-damage {
-    animation: hp-damage-flash 0.3s ease-out;
-}
-
-/* ═══════════════════════════════════════════════════════════════════════
-   BATTLE SCREEN EFFECTS
-   ═══════════════════════════════════════════════════════════════════════ */
-
-/* Screen shake for big hits */
-@keyframes screen-shake {
-
-    0%,
-    100% {
-        transform: translate(0, 0);
-    }
-
-    10% {
-        transform: translate(-5px, -3px);
-    }
-
-    20% {
-        transform: translate(5px, 3px);
-    }
-
-    30% {
-        transform: translate(-4px, 2px);
-    }
-
-    40% {
-        transform: translate(4px, -2px);
-    }
-
-    50% {
-        transform: translate(-3px, 3px);
-    }
-
-    60% {
-        transform: translate(3px, -3px);
-    }
-
-    70% {
-        transform: translate(-2px, 2px);
-    }
-
-    80% {
-        transform: translate(2px, -2px);
-    }
-
-    90% {
-        transform: translate(-1px, 1px);
-    }
-}
-
-.screen-shake {
-    animation: screen-shake 0.5s ease-out;
-}
-
-/* Victory celebration */
-@keyframes victory-bounce {
-
-    0%,
-    100% {
-        transform: translateY(0) scale(1);
-    }
-
-    25% {
-        transform: translateY(-15px) scale(1.05);
-    }
-
-    50% {
-        transform: translateY(0) scale(1);
-    }
-
-    75% {
-        transform: translateY(-8px) scale(1.02);
-    }
-}
-
-.pokemon-victory {
-    animation: victory-bounce 0.8s ease-out 2;
+.move-btn:hover {
+    background: #e0e0e0 !important;
 }
