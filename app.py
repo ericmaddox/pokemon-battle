@@ -399,10 +399,13 @@ async def execute_turn(
         attacker_stat_stages, defender_stat_stages, attacker_status
     )
     
-    # Attack message
+    # Attack message with animation metadata
+    move_type = move.get('type', 'normal')
     events.append({
         "type": "attack",
-        "message": f"{attacker_name} used {move['name']}!"
+        "message": f"{attacker_name} used {move['name']}!",
+        "attacker": "player" if attacker == attacker else "opponent",  # Will be fixed in run_battle_turn
+        "move_type": move_type
     })
     
     # STAB message
@@ -416,7 +419,8 @@ async def execute_turn(
     if critical:
         events.append({
             "type": "critical",
-            "message": "A critical hit!"
+            "message": "A critical hit!",
+            "critical": True
         })
     
     # Effectiveness message
@@ -426,11 +430,13 @@ async def execute_turn(
             "message": eff_text
         })
     
-    # Damage message
+    # Damage message with animation metadata
     category_label = "physical" if move.get('category') == 'physical' else "special"
     events.append({
         "type": "damage",
-        "message": f"   {damage} damage ({category_label})!"
+        "message": f"   {damage} damage ({category_label})!",
+        "defender": "opponent",  # Will be set properly in run_battle_turn
+        "critical": critical
     })
     
     # Check for status infliction (only if target doesn't have a status)
@@ -827,20 +833,26 @@ def create_pokemon_info_html(pokemon_data: dict | None, is_player: bool = True) 
     </div>
     """
 
-def create_hp_bar_html(name: str, hp_percent: int, is_player: bool) -> str:
-    """Create a Pokemon-style HP bar."""
+def create_hp_bar_html(name: str, hp_percent: int, is_player: bool, animate_damage: bool = False) -> str:
+    """Create a Pokemon-style HP bar with animations."""
+    hp_percent = max(0, min(100, hp_percent))  # Clamp to 0-100
+    
     if hp_percent > 50:
         bar_color = "linear-gradient(180deg, #70f880 0%, #20d070 50%, #18a050 100%)"
-        bar_class = "hp-bar-green"
+        bar_class = "hp-bar-green hp-bar-animated"
     elif hp_percent > 20:
         bar_color = "linear-gradient(180deg, #f8e870 0%, #f8c830 50%, #c8a028 100%)"
-        bar_class = "hp-bar-yellow"
+        bar_class = "hp-bar-yellow hp-bar-animated"
     else:
         bar_color = "linear-gradient(180deg, #f88070 0%, #f85030 50%, #c03020 100%)"
-        bar_class = "hp-bar-red"
+        bar_class = "hp-bar-red hp-bar-animated hp-bar-critical"  # Pulse when critical
+    
+    # Add damage flash animation class if just took damage
+    damage_class = "hp-damage" if animate_damage else ""
+    side_id = "player" if is_player else "opponent"
     
     return f"""
-    <div style="background: linear-gradient(180deg, #f0f0f0 0%, #d8d8d8 100%); border: 3px solid #404040;
+    <div id="{side_id}-hp-container" style="background: linear-gradient(180deg, #f0f0f0 0%, #d8d8d8 100%); border: 3px solid #404040;
         border-radius: 8px; padding: 8px 12px; margin: 4px 0;
         box-shadow: inset -2px -2px 0 #a0a0a0, inset 2px 2px 0 #ffffff, 4px 4px 0 #303030;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
@@ -849,8 +861,8 @@ def create_hp_bar_html(name: str, hp_percent: int, is_player: bool) -> str:
         </div>
         <div style="display: flex; align-items: center;">
             <span style="font-family: 'Press Start 2P', monospace; font-size: 8px; color: #f08030; margin-right: 6px;">HP</span>
-            <div style="flex: 1; height: 8px; background: #484848; border-radius: 4px; padding: 2px; box-shadow: inset 1px 1px 0 #202020;">
-                <div class="{bar_class}" style="width: {hp_percent}%; height: 100%; background: {bar_color}; border-radius: 2px; transition: width 0.5s ease-out;"></div>
+            <div class="{damage_class}" style="flex: 1; height: 8px; background: #484848; border-radius: 4px; padding: 2px; box-shadow: inset 1px 1px 0 #202020;">
+                <div id="{side_id}-hp-bar" class="{bar_class}" style="width: {hp_percent}%; height: 100%; background: {bar_color}; border-radius: 2px; transition: width 0.8s ease-out;"></div>
             </div>
         </div>
         <div style="text-align: right; margin-top: 4px;">
@@ -860,7 +872,7 @@ def create_hp_bar_html(name: str, hp_percent: int, is_player: bool) -> str:
     """
 
 def format_battle_log(events: list[dict], turn_number: int = 0, player_name: str = "") -> str:
-    """Format battle events into Pokemon game-style HTML with turn separators."""
+    """Format battle events into Pokemon game-style HTML with turn separators and animations."""
     if not events:
         prompt = f"What will {player_name} do?" if player_name else "What will you do?"
         return f"""<div style="font-family: 'Press Start 2P', monospace; font-size: 11px; color: #303030; 
@@ -868,11 +880,15 @@ def format_battle_log(events: list[dict], turn_number: int = 0, player_name: str
     
     html = ""
     current_turn = 0
+    animation_scripts = []  # Collect animation triggers
     
     for event in events:
         event_type = event.get("type", "info")
         message = event.get("message", "")
         turn = event.get("turn", 0)
+        attacker = event.get("attacker", "player")  # Track who is attacking
+        move_type = event.get("move_type", "normal")  # For type-based VFX
+        is_critical = event.get("critical", False)
         
         # Add turn separator when turn changes
         if turn > current_turn:
@@ -880,6 +896,22 @@ def format_battle_log(events: list[dict], turn_number: int = 0, player_name: str
             html += f"""<div style="font-family: 'Press Start 2P', monospace; font-size: 10px; 
                 color: #6890f0; padding: 8px 0 4px; margin-top: 8px; 
                 border-top: 2px dashed #a0a0a0;">─── TURN {turn} ───</div>"""
+        
+        # Add animation triggers based on event type
+        if event_type == "attack":
+            defender = "opponent" if attacker == "player" else "player"
+            animation_scripts.append(f"setTimeout(function(){{ if(window.triggerAttackAnimation) window.triggerAttackAnimation('{attacker}', '{move_type}'); }}, 100);")
+        elif event_type == "damage":
+            defender = event.get("defender", "opponent")
+            if is_critical:
+                animation_scripts.append(f"setTimeout(function(){{ if(window.triggerHitAnimation) window.triggerHitAnimation('{defender}', true); if(window.triggerScreenShake) window.triggerScreenShake(); }}, 200);")
+            else:
+                animation_scripts.append(f"setTimeout(function(){{ if(window.triggerHitAnimation) window.triggerHitAnimation('{defender}', false); }}, 200);")
+        elif event_type in ["victory", "defeat"]:
+            winner = "player" if event_type == "victory" else "opponent"
+            loser = "opponent" if event_type == "victory" else "player"
+            animation_scripts.append(f"setTimeout(function(){{ if(window.triggerFaintAnimation) window.triggerFaintAnimation('{loser}'); }}, 100);")
+            animation_scripts.append(f"setTimeout(function(){{ if(window.triggerVictoryAnimation) window.triggerVictoryAnimation('{winner}'); }}, 500);")
         
         # Style based on event type - Pokemon game colors
         styles = {
@@ -902,12 +934,17 @@ def format_battle_log(events: list[dict], turn_number: int = 0, player_name: str
         style = styles.get(event_type, "color: #303030;")
         html += f'<div style="font-family: \'Press Start 2P\', monospace; font-size: 11px; padding: 2px 0; line-height: 1.8; {style}">{message}</div>'
     
+    # Add animation script block
+    anim_script = ""
+    if animation_scripts:
+        anim_script = f"<script>{' '.join(animation_scripts)}</script>"
+    
     # Wrap in scrollable container
     return f"""<div style="background: #f8f8f8; border: 4px solid #404040; border-radius: 12px; padding: 16px;
         box-shadow: inset -3px -3px 0 #c0c0c0, inset 3px 3px 0 #ffffff, 5px 5px 0 #303030;
         max-height: 350px; overflow-y: auto;">
         {html}
-    </div>"""
+    </div>{anim_script}"""
 
 # ══════════════════════════════════════════════════════════════════════════════
 # GRADIO APP
@@ -997,6 +1034,62 @@ with gr.Blocks(
                                 }, 200);
                             };
                         }
+                    }
+                };
+                
+                // Battle Animation Functions
+                window.triggerAttackAnimation = function(attackerSide, moveType) {
+                    // attackerSide: 'player' or 'opponent'
+                    const attackerSprite = document.querySelector(`#${attackerSide}-info img, .${attackerSide}-sprite`);
+                    if (attackerSprite) {
+                        const direction = attackerSide === 'player' ? 'right' : 'left';
+                        attackerSprite.classList.add(`pokemon-attack-${direction}`);
+                        attackerSprite.classList.add(`effect-${moveType || 'normal'}`);
+                        setTimeout(() => {
+                            attackerSprite.classList.remove(`pokemon-attack-${direction}`);
+                            attackerSprite.classList.remove(`effect-${moveType || 'normal'}`);
+                        }, 500);
+                    }
+                };
+                
+                window.triggerHitAnimation = function(defenderSide, isCritical) {
+                    // Find sprites by looking for images in the info panels
+                    const sprites = document.querySelectorAll('img[style*="image-rendering: pixelated"]');
+                    const targetIdx = defenderSide === 'opponent' ? 1 : 0;
+                    const sprite = sprites[targetIdx];
+                    
+                    if (sprite) {
+                        const animClass = isCritical ? 'pokemon-critical' : 'pokemon-hit';
+                        sprite.classList.add(animClass);
+                        setTimeout(() => sprite.classList.remove(animClass), 600);
+                    }
+                };
+                
+                window.triggerFaintAnimation = function(side) {
+                    const sprites = document.querySelectorAll('img[style*="image-rendering: pixelated"]');
+                    const targetIdx = side === 'opponent' ? 1 : 0;
+                    const sprite = sprites[targetIdx];
+                    
+                    if (sprite) {
+                        sprite.classList.add('pokemon-faint');
+                    }
+                };
+                
+                window.triggerVictoryAnimation = function(winnerSide) {
+                    const sprites = document.querySelectorAll('img[style*="image-rendering: pixelated"]');
+                    const targetIdx = winnerSide === 'opponent' ? 1 : 0;
+                    const sprite = sprites[targetIdx];
+                    
+                    if (sprite) {
+                        sprite.classList.add('pokemon-victory');
+                    }
+                };
+                
+                window.triggerScreenShake = function() {
+                    const container = document.querySelector('.gradio-container');
+                    if (container) {
+                        container.classList.add('screen-shake');
+                        setTimeout(() => container.classList.remove('screen-shake'), 500);
                     }
                 };
             </script>
