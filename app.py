@@ -247,6 +247,39 @@ def calculate_stat(base_stat: int, level: int = 50, iv: int = 15, ev: int = 85, 
     """
     return int((((2 * base_stat + iv + ev // 4) * level) / 100 + 5) * nature)
 
+def get_base_stat_total(pokemon: dict) -> int:
+    """Calculate the Base Stat Total (BST) of a Pokemon."""
+    return sum(stat['base_stat'] for stat in pokemon.get('stats', []))
+
+def calculate_effective_level(my_bst: int, opponent_bst: int, base_level: int = 50) -> int:
+    """
+    Calculate effective level to balance mismatched BST.
+    Weaker Pokemon get higher levels, stronger Pokemon get lower levels.
+    
+    Formula: level = base_level + (avg_bst - my_bst) / 10
+    Clamped between 1 and 100.
+    """
+    avg_bst = (my_bst + opponent_bst) / 2
+    level_adjustment = (avg_bst - my_bst) / 10
+    effective_level = base_level + level_adjustment
+    return max(1, min(100, int(effective_level)))
+
+def get_matchup_tier(player_bst: int, opponent_bst: int) -> tuple[str, str]:
+    """
+    Return matchup tier indicator and description.
+    Returns (emoji, description)
+    """
+    diff = abs(player_bst - opponent_bst)
+    if diff <= 50:
+        return "🟢", "Fair Match"
+    elif diff <= 100:
+        advantage = "You" if player_bst > opponent_bst else "Opponent"
+        return "🟡", f"{advantage} has slight advantage"
+    else:
+        advantage = "You" if player_bst > opponent_bst else "Opponent"
+        return "🔴", f"{advantage} has major advantage (levels will be scaled)"
+
+
 async def calculate_damage_enhanced(
     attacker: dict, 
     defender: dict, 
@@ -833,7 +866,7 @@ def create_pokemon_info_html(pokemon_data: dict | None, is_player: bool = True) 
     </div>
     """
 
-def create_hp_bar_html(name: str, hp_percent: int, is_player: bool, animate_damage: bool = False) -> str:
+def create_hp_bar_html(name: str, hp_percent: int, is_player: bool, level: int = 50, animate_damage: bool = False) -> str:
     """Create a Pokemon-style HP bar with animations."""
     hp_percent = max(0, min(100, hp_percent))  # Clamp to 0-100
     
@@ -857,7 +890,7 @@ def create_hp_bar_html(name: str, hp_percent: int, is_player: bool, animate_dama
         box-shadow: inset -2px -2px 0 #a0a0a0, inset 2px 2px 0 #ffffff, 4px 4px 0 #303030;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
             <span style="font-family: 'Press Start 2P', monospace; font-size: 11px; color: #303030;">{name.upper()}</span>
-            <span style="font-family: 'Press Start 2P', monospace; font-size: 9px; color: #505050;">Lv50</span>
+            <span style="font-family: 'Press Start 2P', monospace; font-size: 9px; color: #505050;">Lv{level}</span>
         </div>
         <div style="display: flex; align-items: center;">
             <span style="font-family: 'Press Start 2P', monospace; font-size: 8px; color: #f08030; margin-right: 6px;">HP</span>
@@ -1080,6 +1113,10 @@ with gr.Blocks(
     player_sleep_turns_state = gr.State(0)
     opponent_sleep_turns_state = gr.State(0)
     
+    # Level scaling for balanced battles (based on BST difference)
+    player_level_state = gr.State(50)
+    opponent_level_state = gr.State(50)
+    
     # ══════════════════════════════════════════════════════════════════════════
     # HEADER
     # ══════════════════════════════════════════════════════════════════════════
@@ -1256,12 +1293,22 @@ with gr.Blocks(
         # Get player moves
         player_moves = await get_pokemon_moves(player_data)
         
-        # Initialize HP using official Pokemon formula (much higher than base stats)
-        # Base HP 35 (Pikachu) -> ~110 HP at level 50
+        # Calculate Base Stat Totals for level scaling
+        player_bst = get_base_stat_total(player_data)
+        opponent_bst = get_base_stat_total(opponent_data)
+        
+        # Calculate effective levels based on BST difference
+        player_level = calculate_effective_level(player_bst, opponent_bst)
+        opponent_level = calculate_effective_level(opponent_bst, player_bst)
+        
+        # Get matchup tier indicator
+        tier_emoji, tier_desc = get_matchup_tier(player_bst, opponent_bst)
+        
+        # Initialize HP using effective levels (this balances the matchup!)
         base_p1_hp = player_data['stats'][0]['base_stat']
         base_p2_hp = opponent_data['stats'][0]['base_stat']
-        max_p1_hp = calculate_hp(base_p1_hp)  # Proper HP calculation
-        max_p2_hp = calculate_hp(base_p2_hp)
+        max_p1_hp = calculate_hp(base_p1_hp, level=player_level)
+        max_p2_hp = calculate_hp(base_p2_hp, level=opponent_level)
         
         player_name = player_data['name'].capitalize()
         opponent_name = opponent_data['name'].capitalize()
@@ -1278,29 +1325,22 @@ with gr.Blocks(
             label = f"{m['name']} ({m['type'].upper()})"
             move_labels.append(label)
         
-        # Initialize battle log with cry playback script
+        # Initialize battle log with level and matchup info
         init_msg = f"""<div style="background: #f8f8f8; border: 4px solid #404040; border-radius: 12px; padding: 16px;
             box-shadow: inset -3px -3px 0 #c0c0c0, inset 3px 3px 0 #ffffff, 5px 5px 0 #303030;">
             <div style="font-family: 'Press Start 2P', monospace; font-size: 11px; color: #303030; line-height: 2;">
-                🔊 {player_name} vs {opponent_name}!<br>
+                {tier_emoji} {tier_desc}<br>
+                🔊 {player_name} (Lv{player_level}, {player_bst} BST) vs {opponent_name} (Lv{opponent_level}, {opponent_bst} BST)!<br>
                 Your SPD: {player_speed} | Enemy SPD: {opponent_speed}<br>
                 Weather: {weather.capitalize()}<br><br>
                 What will {player_name} do?
             </div>
-        </div>
-        <script>
-            // Play both Pokemon cries when battle starts
-            setTimeout(function() {{
-                if (window.playCrySequence) {{
-                    window.playCrySequence('{player_cry}', '{opponent_cry}');
-                }}
-            }}, 300);
-        </script>"""
+        </div>"""
         
         return (
             init_msg,
-            create_hp_bar_html(player_name, 100, is_player=True),
-            create_hp_bar_html(opponent_name, 100, is_player=False),
+            create_hp_bar_html(player_name, 100, is_player=True, level=player_level),
+            create_hp_bar_html(opponent_name, 100, is_player=False, level=opponent_level),
             gr.update(visible=True),   # battle_arena
             gr.update(visible=True),   # move_selection_area
             gr.update(value=move_labels[0]),
@@ -1310,7 +1350,8 @@ with gr.Blocks(
             player_moves,  # player_moves_state
             True,  # battle_active
             max_p1_hp, max_p2_hp, max_p1_hp, max_p2_hp,  # HP states
-            []  # events
+            [],  # events
+            player_level, opponent_level  # NEW: levels for state
         )
     
     async def use_move(move_index, player_data, opponent_data, weather, player_hp, opponent_hp, max_p_hp, max_o_hp, player_moves, prev_events, battle_active, turn_counter):
@@ -1470,7 +1511,8 @@ with gr.Blocks(
             move_btn_1, move_btn_2, move_btn_3, move_btn_4,
             player_moves_state, battle_active_state,
             player_hp_state, opponent_hp_state, max_player_hp_state, max_opponent_hp_state,
-            battle_events_state
+            battle_events_state,
+            player_level_state, opponent_level_state  # NEW: level states
         ]
     )
     
